@@ -1,1 +1,64 @@
-<!doctype html><title>Site Hazard Detection</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Hazard Detection</title>
+<link rel="preload" href="/fonts/atkinson-hyperlegible-next-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/atkinson-hyperlegible-mono-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/barlow-condensed-latin-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/barlow-condensed-latin-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css">
+<script type="module" src="/js/main.js"></script>
+</head>
+<body>
+<div class="app" id="app" data-state="booting">
+  <header class="header">
+    <h1 id="wordmark" class="wordmark"></h1>
+    <p class="model" data-health="loading"><span id="status-dot" class="dot" aria-hidden="true"></span><span id="model-label"></span></p>
+  </header>
+
+  <nav class="strip" aria-label="Photos">
+    <div id="strip" class="thumbs"></div>
+    <span class="strip-rule" aria-hidden="true"></span>
+    <button id="upload-tile" class="thumb upload" type="button" aria-describedby="upload-types">
+      <span class="upload-box" aria-hidden="true">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13V3.5M6.25 7.25 10 3.5l3.75 3.75"/><path d="M3.5 12.5v2.75c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25V12.5"/></svg>
+      </span>
+      <span class="caption" data-s="uploadCaption"></span>
+    </button>
+    <span id="upload-types" hidden data-s="uploadTypes"></span>
+    <input id="upload-input" type="file" accept=".jpg,.jpeg,.png,.webp" hidden>
+    <p id="upload-msg" class="upload-msg" role="status"></p>
+  </nav>
+
+  <main id="stage" class="stage">
+    <div class="well">
+      <div class="frame">
+        <svg class="overlay"></svg>
+        <div class="tags"></div>
+      </div>
+      <div id="stats" class="stats"></div>
+    </div>
+  </main>
+
+  <aside id="panel" class="panel" aria-labelledby="panel-heading">
+    <div class="panel-head">
+      <div class="panel-title">
+        <h2 id="panel-heading" data-s="panelHeading"></h2>
+        <button id="overlay-toggle" class="text-button" type="button" aria-pressed="false" hidden data-s="hideBoxes"></button>
+      </div>
+      <p id="legend" class="legend"></p>
+    </div>
+    <div id="findings-list" class="findings"></div>
+    <footer class="panel-foot">
+      <p id="limits" class="limits" data-s="limits"></p>
+      <span id="version" class="version"></span>
+    </footer>
+  </aside>
+
+  <div id="live" class="visually-hidden" aria-live="polite"></div>
+  <div id="banner" class="banner" hidden></div>
+</div>
+</body>
+</html>
