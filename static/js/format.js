@@ -52,7 +52,8 @@ export function megabytes(bytes) {
 }
 
 // The words for an error the screen shows (UI-33, UI-35, R21): {message, details}. `name` is the uploaded file's
-// name; `timeoutMs` is the scan timeout from config. None of them reads just "Error".
+// name; `timeoutMs` is the scan timeout from config. `error.upload` marks a failed upload; any other unknown error
+// came from a scan. None of them reads just "Error".
 export function errorCopy(error, { name, timeoutMs }) {
   switch (error.kind) {
     case "timeout": return { message: S.scanTimeout(timeoutMs / 1000) };
@@ -66,6 +67,6 @@ export function errorCopy(error, { name, timeoutMs }) {
       return { message: error.value ? S.tooManyPixels(name, error.value, error.limit)
         : S.tooManyPixelsOver(name, error.limit) };
     case "too-small": return { message: S.tooSmall(name, error.value, error.limit) };
-    default: return { message: S.unreadable };
+    default: return { message: error.upload ? S.unreadable : S.scanFailed };
   }
 }

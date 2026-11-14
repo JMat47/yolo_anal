@@ -401,7 +401,13 @@ button { font: inherit; color: inherit; }
   overflow-wrap: anywhere;
   color: var(--ink-2);
 }
-.stage-msg-detail .command { white-space: nowrap; color: var(--ink-1); }
+.stage-msg-detail .command {
+  padding: 0 var(--space-1);
+  border-radius: 2px;
+  background: var(--surface-2);
+  white-space: nowrap;
+  color: var(--ink-1);
+}
 /* Waiting: the picked photo, dimmed as the scene dims it but with no grid or sweep, and the sentence on a plate. */
 .app[data-state="waiting"] .stage-msg { background: rgb(12 14 16 / 0.55); }
 .app[data-state="waiting"] .stage-msg-body {
@@ -425,12 +431,15 @@ button { font: inherit; color: inherit; }
   vertical-align: 0.15em;
 }
 /* Server lost (R6): the photo, overlays, stats and cards are hidden, not cleared, so recovery redraws nothing.
-   Boot error has no stats or cards to show. */
+   Boot error has no stats or cards to show. Neither has a panel (UI-23): a heading left over hidden results, such
+   as "No hazards flagged", would read as an all-clear. */
 .app[data-state="server-lost"] #photo,
 .app[data-state="server-lost"] .overlay,
 .app[data-state="server-lost"] .tags,
 .app[data-state="server-lost"] .stats,
 .app[data-state="server-lost"] .findings,
+.app[data-state="server-lost"] .panel-head,
+.app[data-state="boot-error"] .panel-head,
 .app[data-state="boot-error"] .stats { visibility: hidden; }
 
 /* Boxes and leaders (UI-14, UI-19, UI-20): the dash tells red from amber without hue. */

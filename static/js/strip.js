@@ -79,7 +79,7 @@ function thumbnail(key, image, name, { uploaded = false } = {}) {
     caption = span("caption is-split", "");
     // CSS never ellipses a line's first character; a zero-width word joiner takes that place, so a thumbnail
     // too narrow for any of the head shows a clean "…" rather than a clipped letter.
-    caption.append(span("caption-head", head && `⁠${head}`), span("caption-tail", tail));
+    caption.append(span("caption-head", head && `\u2060${head}`), span("caption-tail", tail));
   }
   button.append(img, caption);
   return button;

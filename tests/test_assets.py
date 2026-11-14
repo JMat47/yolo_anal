@@ -13,7 +13,7 @@ def test_photos_json_matches_files():
     assert all(p.file.is_file() and p.file.parent == DEMO_DIR / "photos" for p in photos)
     assert photos[0].id == "noppe-1"
     assert all(p.scene for p in photos)
-    assert [p.id for p in photos if not p.strip] == ["clean-floor-1", "clean-floor-2"]
+    assert [p.id for p in photos if not p.strip] == ["stair-railed-1", "clean-floor-1", "clean-floor-2"]
 
 
 def test_fonts_bundled():

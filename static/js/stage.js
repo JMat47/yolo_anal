@@ -96,10 +96,11 @@ export function setMessage(text, detail = null) {
   message.replaceChildren(body);
 }
 
-// The boot error's cause names a path and a fix command in backticks; a command never breaks across lines.
+// The boot error's cause names a path and a fix command in backticks. The backticks go; the command is marked by
+// its style alone and never breaks across lines.
 function detailLine(detail) {
   const line = textNode("p", "stage-msg-detail", "");
-  detail.split(/(`[^`]+`)/).forEach((part, index) => {
+  detail.split(/`([^`]+)`/).forEach((part, index) => {
     if (part) line.append(index % 2 ? textNode("span", "command", part) : part);
   });
   return line;

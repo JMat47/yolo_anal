@@ -75,11 +75,14 @@ function showPhoto({ key, image, name }) {
   });
 }
 
+// Every new selection (a pick, an upload or a re-scan) clears what the last one drew, and any upload message
+// (UI-24).
 function clearStage() {
   sceneToken++;
   stage.clearOverlays();
   stats.clearStats();
   cards.clearCards();
+  clearUploadMessage();
   $("live").textContent = "";
 }
 
@@ -175,7 +178,7 @@ function prepareUpload() {
     if (!live()) return;
     stopWork();
     finish();
-    dispatch({ type: "prepareFailed", error: { kind: "unreadable" } });
+    dispatch({ type: "prepareFailed", error: { kind: "unreadable", upload: true } });
   }, PREPARE_LIMIT_MS);
   api.prepare(file, request.signal)
     .then((image) => {
@@ -188,12 +191,18 @@ function prepareUpload() {
     .catch((err) => {
       if (!live()) return;
       finish();
-      dispatch({ type: "prepareFailed", error: errorOf(err) });
+      dispatch({ type: "prepareFailed", error: { ...errorOf(err), upload: true } });
     });
 }
 
 const errorOf = (err) => (err instanceof api.ApiError ? { kind: err.kind, ...(err.body?.error ?? {}) }
   : { kind: "unreadable" });
+
+// A thumbnail chosen: a pick before the model is ready clears nothing on stage, but the upload message still goes.
+function pick(photo) {
+  clearUploadMessage();
+  dispatch({ type: "pick", ...photo });
+}
 
 // --- Rendering from state --------------------------------------------------------------------------------------
 
@@ -216,7 +225,7 @@ function renderHeader() {
   const status = LOCKED.has(state.app) ? "error" : state.modelReady ? "ready" : "loading";
   $("status-dot").closest(".model").dataset.health = status;
   if (state.app === "server-lost") label.textContent = S.modelOffline;
-  else if (status === "error") label.textContent = S.modelError(health?.message ?? "");
+  else if (status === "error") label.textContent = S.modelError((health?.message ?? "").replaceAll("`", ""));
   else if (status === "ready") label.replaceChildren(`${S.modelActive} `, span("checkpoint", health?.model ?? ""));
   else label.textContent = loadingLong ? S.modelLoadingLong : S.modelLoading;
   label.title = status === "error" ? label.textContent : "";
@@ -270,10 +279,14 @@ function watchLoading() {
 }
 
 function showUploadMessage(text) {
-  const message = $("upload-msg");
-  message.textContent = text;
+  $("upload-msg").textContent = text;
   clearTimeout(uploadMsgTimer);
-  uploadMsgTimer = setTimeout(() => { message.textContent = ""; }, UPLOAD_MSG_MS);
+  uploadMsgTimer = setTimeout(clearUploadMessage, UPLOAD_MSG_MS);
+}
+
+function clearUploadMessage() {
+  clearTimeout(uploadMsgTimer);
+  $("upload-msg").textContent = "";
 }
 
 // --- Boot ------------------------------------------------------------------------------------------------------
@@ -316,7 +329,7 @@ async function pollHealth() {
 }
 
 function wireInputs() {
-  strip.onPick((photo) => dispatch({ type: "pick", ...photo }));
+  strip.onPick(pick);
 
   // A box or tag under the pointer highlights itself and marks its card (UI-20).
   const linked = (target) => target?.closest?.("[data-box], [data-tag]");

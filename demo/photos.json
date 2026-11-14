@@ -1,7 +1,7 @@
 [{"id": "noppe-1", "file": "noppe-1.jpg", "scene": "Tulaghi site"},
  {"id": "opening-open-1", "file": "opening-open-1.jpg", "scene": "Timber floor"},
  {"id": "materials-3", "file": "materials-3.jpg", "scene": "Old workshop"},
- {"id": "stair-railed-1", "file": "stair-railed-1.jpg", "scene": "Stair flight"},
+ {"id": "stair-railed-1", "file": "stair-railed-1.jpg", "scene": "Stair flight", "strip": false},
  {"id": "ppe-ok-1", "file": "ppe-ok-1.jpg", "scene": "Slab edge"},
  {"id": "clean-floor-1", "file": "clean-floor-1.jpg", "scene": "Corridor", "strip": false},
  {"id": "clean-floor-2", "file": "clean-floor-2.jpg", "scene": "Basement", "strip": false}]
