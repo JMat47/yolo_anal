@@ -43,3 +43,29 @@ export function orList(words) {
   if (words.length <= 1) return words.join("");
   return `${words.slice(0, -1).join(", ")} ${S.or} ${words.at(-1)}`;
 }
+
+// A size in MB the way the server writes it ("25 MB"), rounded up to 0.1 so a file just over the limit never
+// reads as equal to it.
+export function megabytes(bytes) {
+  const mb = bytes / (1024 * 1024);
+  return S.megabytes(Number.isInteger(mb) ? String(mb) : (Math.ceil(mb * 10) / 10).toFixed(1));
+}
+
+// The words for an error the screen shows (UI-33, UI-35, R21): {message, details}. `name` is the uploaded file's
+// name; `timeoutMs` is the scan timeout from config. None of them reads just "Error".
+export function errorCopy(error, { name, timeoutMs }) {
+  switch (error.kind) {
+    case "timeout": return { message: S.scanTimeout(timeoutMs / 1000) };
+    case "model-error": return { message: S.scanFailed, details: error.detail ? S.scanDetails(error.detail) : null };
+    case "not-ready": return { message: S.scanNotReady };
+    case "size-mismatch": return { message: S.scanSizeMismatch };
+    case "photo-not-shown": return { message: S.photoNotShown };
+    case "unsupported": return { message: error.format === "heic" ? S.heic(name) : S.otherType(name) };
+    case "too-large":
+      if (error.measure !== "pixels") return { message: S.tooManyBytes(name, error.value, error.limit) };
+      return { message: error.value ? S.tooManyPixels(name, error.value, error.limit)
+        : S.tooManyPixelsOver(name, error.limit) };
+    case "too-small": return { message: S.tooSmall(name, error.value, error.limit) };
+    default: return { message: S.unreadable };
+  }
+}

@@ -21,6 +21,6 @@ max_findings: 3
 hazards:
   fall_stair:   {category: Fall hazard, severity: high, titles: {default: Staircase without a railing}, check_label: Staircase without a railing}
   fall_opening: {category: Fall hazard, severity: high, titles: {default: Floor opening without a railing}, check_label: Floor opening without a railing}
-  trip:         {category: Trip hazard, severity: medium, titles: {cable: Cable on the floor, debris: Debris on the floor, uneven_floor: Uneven floor}, check_label: Cable, debris or uneven floor}
+  trip:         {category: Trip hazard, severity: medium, titles: {cable: Cable on the floor, debris: Debris on the floor, uneven_floor: Uneven floor}, check_label: "Cable, debris or uneven floor"}
   no_ppe:       {category: No PPE, severity: high, titles: {both: No hard hat or safety vest, hard_hat: No hard hat, safety_vest: No safety vest}, check_label: Person without a hard hat or safety vest}
   materials:    {category: Materials dumped, severity: medium, titles: {default: Pile of materials}, check_label: Pile of materials}

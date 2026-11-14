@@ -33,15 +33,19 @@ export const S = {
   otherType: (name) => `Can't open ${name}. Choose a JPG, PNG or WebP photo.`,
   tooManyBytes: (name, value, limit) => `Can't open ${name}: the file is ${value}; the limit is ${limit}.`,
   tooManyPixels: (name, value, limit) => `Can't open ${name}: the photo is ${value}; the limit is ${limit}.`,
+  tooManyPixelsOver: (name, limit) => `Can't open ${name}: the photo is over the ${limit} limit.`,
   tooSmall: (name, value, limit) => `Can't open ${name}: its shortest side is ${value}; the minimum is ${limit}.`,
   unreadable: "This file couldn't be read as a photo.",
+  megabytes: (value) => `${value} MB`,
 
   // Scan errors (UI-35, R21)
   scanFailed: "Scan failed. The model returned an error for this photo. Scan again, or choose another photo.",
   scanDetails: (text) => `Details: ${text}`,
   scanTimeout: (seconds) => `Scan stopped: no result after ${seconds} s. Scan again; if it happens twice, restart the app.`,
   scanNotReady: "The model isn't ready yet. Scan again in a moment.",
-  scanSizeMismatch: "The photo on screen doesn't match the size the model scanned, so its boxes can't be drawn. Scan again.",
+  scanSizeMismatch: "The photo on screen doesn't match the size the model scanned, so its boxes can't be drawn. " +
+    "Choose the photo again.",
+  photoNotShown: "The photo couldn't be shown. Choose it again, or choose another photo.",
   scanAgain: "Scan again",
 
   // Stats row (UI-37, UI-38, UI-39, UI-31)
@@ -53,6 +57,7 @@ export const S = {
 
   // Findings panel (UI-23, UI-42, UI-46, UI-101, UI-21)
   panelHeading: "Hazards flagged",
+  panelHeadingEmpty: "No hazards flagged",
   legend: (thresholdPct) => "Confidence is the model's score for one object, not the chance a hazard is real. " +
     `Scores of ${thresholdPct}% or less count as missing.`,
   panelBooting: "Loading the model. Photos can be scanned once it's ready.",

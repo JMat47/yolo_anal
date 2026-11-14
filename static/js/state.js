@@ -40,6 +40,7 @@ export function reduce(state, event) {
     case "response": return onResponse(state, event);
     case "failed": return onFailed(state, event);
     case "timeout": return onTimeout(state, event);
+    case "photoFailed": return onPhotoFailed(state, event);
     default: return keep(state);
   }
 }
@@ -72,12 +73,33 @@ function onHealth(s, health) {
     case "boot-error":
       return ready ? go(s, { ...base, app: "idle" }) : keep(s);
     case "server-lost":
-      if (!ready) return keep(s);
-      if (s.prev === "result" || s.prev === "empty") return go(s, { ...base, app: s.prev, prev: null });
-      return go(s, { ...base, ...NO_PHOTO, app: "idle", prev: null }, CLEAR);
+      return recover(s, { ...base, prev: null }, ready, failed);
     default:
-      return keep(s);
+      // idle, scanning, result, empty or error. An upload rejected before the model was ready leaves `error`
+      // with modelReady false, so readiness is still tracked here.
+      if (failed) return go(s, { ...base, ...NO_PHOTO, app: "boot-error" }, ...(busy(s) ? [ABORT] : []), CLEAR);
+      return ready === s.modelReady ? keep(s) : go(s, base);
   }
+}
+
+// The server answers again with the same boot id. Its state decides where the page goes: a result or empty
+// screen comes back as it was (R6: it was only hidden), a pick made while loading keeps waiting or now scans,
+// and anything else starts over.
+function recover(s, base, ready, failed) {
+  if (failed) return go(s, { ...base, ...NO_PHOTO, app: "boot-error" }, CLEAR);
+  if (!ready) {
+    if (s.prev === "waiting") return go(s, { ...base, app: "waiting" });
+    // One boot id is one model service, which never goes from ready back to loading; only a server restarted
+    // with its old boot id (the test harness) does. Its images are the same, so the hidden result waits for ready.
+    if (s.prev === "result" || s.prev === "empty") return keep(s);
+    return go(s, { ...base, ...NO_PHOTO, app: "warming" }, CLEAR);
+  }
+  if (s.prev === "result" || s.prev === "empty") return go(s, { ...base, app: s.prev });
+  if (s.prev === "waiting" && s.image) {
+    const seq = s.seq + 1;
+    return go(s, { ...base, app: "scanning", seq, pending: null }, CLEAR, scan(s.image.id, seq));
+  }
+  return go(s, { ...base, ...NO_PHOTO, app: "idle" }, CLEAR);
 }
 
 function onHealthFailed(s) {
@@ -146,4 +168,14 @@ function onTimeout(s, { seq }) {
   if (s.app !== "scanning" || seq !== s.seq) return keep(s);
   const error = { kind: "timeout" };
   return go(s, { app: "error", error }, ABORT, { type: "showError", error });
+}
+
+// The photo on stage couldn't be shown (it didn't decode, or its size isn't the size the server prepared). Its
+// boxes could never be drawn, so the page drops the photo and any scan of it; picking it again starts afresh.
+const PHOTO_STATES = new Set(["waiting", "scanning", "result", "empty", "error"]);
+
+function onPhotoFailed(s, { key, error }) {
+  if (key !== s.photoKey || !PHOTO_STATES.has(s.app)) return keep(s);
+  return go(s, { ...NO_PHOTO, app: "error", error }, ...(busy(s) ? [ABORT] : []), CLEAR,
+    { type: "showError", error });
 }

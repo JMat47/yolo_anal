@@ -1,18 +1,22 @@
 // The controller: every input becomes an event, reduce() decides the next state, and the effects it returns are
-// carried out here. Rendering that follows directly from the state (header, selected thumbnail, panel message)
-// happens in render().
+// carried out here. Rendering that follows directly from the state (header, thumbnails, Upload tile, stage
+// message, panel message) happens in render(); CSS keyed on the root's data-state hides what a state hides (R6).
 import * as api from "./api.js";
 import * as cards from "./cards.js";
-import { countPhrase, displayName, spokenTime } from "./format.js";
+import { countPhrase, displayName, errorCopy, megabytes, spokenTime, splitMiddle } from "./format.js";
 import * as stage from "./stage.js";
 import { initialState, reduce } from "./state.js";
 import * as stats from "./stats.js";
 import { S } from "./strings.js";
 
 const POLL_LOADING_MS = 500;
-const POLL_READY_MS = 4000;   // within UI-35's 5 s, fetch time included
+const POLL_READY_MS = 4000;      // within UI-35's 5 s, fetch time included
 const RETRY_MS = 500;
+const LOADING_LONG_MS = 45000;   // UI-27: the label then adds "still loading, check the server window"
+const PREPARE_LIMIT_MS = 10000;  // UI-33: preparation over 10 s enters error
+const UPLOAD_MSG_MS = 8000;      // UI-33: a rejection checked in the page shows by the Upload tile for 8 s
 const UPLOAD_PREFIX = "upload:";
+const LOCKED = new Set(["boot-error", "server-lost"]);   // nothing can be scanned: thumbnails are disabled
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,17 +24,22 @@ let state = initialState;
 let config = null;
 let health = null;
 const demoPhotos = new Map();   // id -> {id, scene, image}
+let uploadSlot = null;          // the uploaded photo's thumbnail: {key, image, name}
 
-// The work in flight: one scan (or prepare), its scene, its timeout, and the file being uploaded.
+// The work in flight: one scan (or prepare), its scene, its time limit, and the file being uploaded.
 let request = null;             // AbortController
 let scene = null;
-let scanTimeout = 0;
+let workTimer = 0;              // the scan timeout or the prepare limit
 let elapsedTimer = 0;
-let sceneToken = 0;             // bumped whenever the stage is cleared, so a late reveal never draws
+let sceneToken = 0;             // bumped whenever the stage is cleared, so late work never draws
 let uploadFile = null;
+let uploadMsgTimer = 0;
+let loadingTimer = 0;
+let loadingLong = false;
 
 fillCopy();
 wireInputs();
+watchLoading();
 boot();
 
 function dispatch(event) {
@@ -48,23 +57,22 @@ function run(effect) {
     case "showPhoto": return showPhoto(effect);
     case "clear": return clearStage();
     case "scan": return startScan(effect.imageId, effect.seq);
-    case "abort": return stopWork();
+    case "abort": return stopWork({ keepScene: state.app === "error" });   // a timeout lifts its scene gently
     case "prepare": return prepareUpload();
     case "reveal": return reveal(effect.payload);
-    case "showEmpty": return settle();
-    case "showError": return settle();
+    case "showEmpty": return showEmpty(effect.payload);
+    case "showError": return showError(effect.error);
     case "showCached": return stage.drawOverlays(effect.payload.findings, { animate: false });
-    case "clearCache": return undefined;
+    case "clearCache": return dropUploadSlot();   // the server's image store was cleared with its cache
     default: return undefined;
   }
 }
 
 function showPhoto({ key, image, name }) {
-  const alt = key.startsWith(UPLOAD_PREFIX) ? S.uploadAlt(displayName(name)) : S.photoAlt(name);
+  const alt = isUpload(key) ? S.uploadAlt(displayName(name)) : S.photoAlt(name);
   stage.showPhoto(image, alt).catch((err) => {
-    if (state.photoKey !== key) return;
-    const kind = err.message === "size-mismatch" ? "size-mismatch" : "unreadable";
-    dispatch({ type: "failed", seq: state.seq, error: { kind } });
+    const kind = err.message === "size-mismatch" ? "size-mismatch" : "photo-not-shown";
+    dispatch({ type: "photoFailed", key, error: { kind } });
   });
 }
 
@@ -88,7 +96,7 @@ function startScan(imageId, seq) {
     if (seconds > 5) stats.setScanElapsed(seconds);   // UI-30: an elapsed counter after 5 s
   }, 250);
   request = new AbortController();
-  scanTimeout = setTimeout(() => dispatch({ type: "timeout", seq }), config.timeout_ms);
+  workTimer = setTimeout(() => dispatch({ type: "timeout", seq }), config.timeout_ms);
   api.scan(imageId, seq, request.signal)
     .then((payload) => dispatch({ type: "response", seq, payload }))
     .catch((err) => {
@@ -96,12 +104,13 @@ function startScan(imageId, seq) {
     });
 }
 
-// Stops whatever is in flight: the request, its timeout and the scene.
-function stopWork() {
+// Stops whatever is in flight: the request, its timers and, unless kept for a gentle finish, the scene.
+function stopWork({ keepScene = false } = {}) {
   request?.abort();
   request = null;
-  clearTimeout(scanTimeout);
+  clearTimeout(workTimer);
   clearInterval(elapsedTimer);
+  if (keepScene) return;
   scene?.cancel();
   scene = null;
 }
@@ -113,18 +122,35 @@ async function reveal(payload) {
   stage.drawOverlays(payload.findings, { animate: true });
   cards.renderCards(payload.findings, payload.hidden_count, { animate: true });
   stats.renderStats({ findings: payload.findings, modelMs: payload.model_ms, photoName: state.name,
-    uploaded: state.photoKey?.startsWith(UPLOAD_PREFIX) ?? false });
+    uploaded: isUpload(state.photoKey) });
   $("live").textContent = S.liveScanComplete(countPhrase(payload.findings.length), spokenTime(payload.model_ms));
 }
 
-async function settle() {
+// No hazards (UI-34): the photo stays at full brightness, the stats row keeps "Hazards flagged" 0, Model time
+// and Photo, and the panel lists what was checked.
+async function showEmpty(payload) {
   const token = sceneToken;
   await endScene();
-  if (token === sceneToken) stats.clearStats();
+  if (token !== sceneToken) return;
+  stats.renderStats({ findings: [], modelMs: payload.model_ms, photoName: state.name,
+    uploaded: isUpload(state.photoKey) });
+  cards.renderEmpty(payload);
+  $("live").textContent = S.liveScanComplete(countPhrase(0), spokenTime(payload.model_ms));
+}
+
+// The scene lifts, the error bar takes the stats slot, and the panel says there are no results (UI-35).
+async function showError(error) {
+  const token = sceneToken;
+  await endScene();
+  if (token !== sceneToken) return;
+  const copy = errorCopy(error, { name: state.name, timeoutMs: config?.timeout_ms ?? 0 });
+  const onRetry = state.image ? () => dispatch({ type: "rescan" }) : null;
+  stats.renderErrorBar({ ...copy, onRetry });
+  cards.renderPanelMessage(S.panelError);
 }
 
 async function endScene() {
-  clearTimeout(scanTimeout);
+  clearTimeout(workTimer);
   clearInterval(elapsedTimer);
   request = null;
   const ending = scene;
@@ -132,45 +158,128 @@ async function endScene() {
   await ending?.finish();
 }
 
+// Sends the chosen file to be checked and prepared. A pick or a newer upload clears the stage, which makes this
+// one stale; after 10 s it gives up as unreadable (UI-33).
 function prepareUpload() {
   stopWork();
   const file = uploadFile;
+  const token = sceneToken;
+  let settled = false;
+  const live = () => !settled && token === sceneToken;
+  const finish = () => {
+    settled = true;
+    clearTimeout(workTimer);
+    request = null;
+  };
   request = new AbortController();
+  workTimer = setTimeout(() => {
+    if (!live()) return;
+    stopWork();
+    finish();
+    dispatch({ type: "prepareFailed", error: { kind: "unreadable" } });
+  }, PREPARE_LIMIT_MS);
   api.prepare(file, request.signal)
-    .then((image) => dispatch({ type: "prepared", key: UPLOAD_PREFIX + image.id, image, name: image.name }))
-    .catch((err) => dispatch({ type: "prepareFailed", error: errorOf(err) }));
+    .then((image) => {
+      if (!live()) return;
+      finish();
+      setUploadSlot(image);
+      dispatch({ type: "prepared", key: UPLOAD_PREFIX + image.id, image, name: image.name });
+    })
+    .catch((err) => {
+      if (!live()) return;
+      finish();
+      dispatch({ type: "prepareFailed", error: errorOf(err) });
+    });
 }
 
 const errorOf = (err) => (err instanceof api.ApiError ? { kind: err.kind, ...(err.body?.error ?? {}) }
   : { kind: "unreadable" });
 
+const isUpload = (key) => key?.startsWith(UPLOAD_PREFIX) ?? false;
+
 // --- Rendering from state --------------------------------------------------------------------------------------
 
 function render(before) {
-  $("app").dataset.state = state.app;
+  const { app } = state;
+  $("app").dataset.state = app;
+  if (state.modelReady !== before.modelReady) watchLoading();
   renderHeader();
-  for (const thumb of $("strip").querySelectorAll(".thumb")) {
-    const current = thumb.dataset.photo === state.photoKey;
-    thumb.setAttribute("aria-current", current ? "true" : "false");
-    if (current && before.photoKey !== state.photoKey) thumb.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }
+  renderThumbs(before);
+  const upload = $("upload-tile");
+  upload.disabled = app === "preparing" || LOCKED.has(app);   // other thumbnails stay clickable (UI-33)
+  upload.setAttribute("aria-busy", String(app === "preparing"));
   if (state.photoKey === null && before.photoKey !== null) stage.clearPhoto();
-  if (state.app !== before.app) {
-    if (state.app === "booting" || state.app === "warming") cards.renderPanelMessage(S.panelBooting);
-    if (state.app === "idle") cards.renderPanelMessage(S.panelIdle);
-  }
+  stage.setMessage(...stageMessage());
+  if (app !== before.app) renderPanel();
 }
 
 function renderHeader() {
   const label = $("model-label");
-  const status = state.app === "server-lost" || state.app === "boot-error" ? "error"
-    : state.modelReady ? "ready" : "loading";
+  const status = LOCKED.has(state.app) ? "error" : state.modelReady ? "ready" : "loading";
   $("status-dot").closest(".model").dataset.health = status;
   if (state.app === "server-lost") label.textContent = S.modelOffline;
   else if (status === "error") label.textContent = S.modelError(health?.message ?? "");
   else if (status === "ready") label.replaceChildren(`${S.modelActive} `, span("checkpoint", health?.model ?? ""));
-  else label.textContent = S.modelLoading;
+  else label.textContent = loadingLong ? S.modelLoadingLong : S.modelLoading;
   label.title = status === "error" ? label.textContent : "";
+}
+
+function renderThumbs(before = null) {
+  const locked = LOCKED.has(state.app);
+  const waiting = !state.modelReady && !locked;   // a pick now scans once the model is ready (PM-13)
+  for (const thumb of $("strip").querySelectorAll(".thumb")) {
+    const current = thumb.dataset.photo === state.photoKey;
+    thumb.setAttribute("aria-current", current ? "true" : "false");
+    thumb.disabled = locked;
+    thumb.title = waiting ? S.thumbWaitTitle : thumb.dataset.name;
+    if (current && before && before.photoKey !== state.photoKey) {
+      thumb.scrollIntoView({ block: "nearest", inline: "nearest" });
+    }
+  }
+}
+
+// UI-23: the sentence a state puts on the stage, and the detail line under it.
+function stageMessage() {
+  switch (state.app) {
+    case "waiting": return [S.stageWaiting];
+    case "preparing": return [S.stagePreparing(state.name)];
+    case "boot-error": return [S.stageBootError, health?.message || null];
+    case "server-lost": return [S.stageServerLost];
+    default: return [null];
+  }
+}
+
+// The panel's own message on entering a state. empty and error fill it once their scene has ended; result
+// draws cards; server-lost only hides what is there (R6).
+function renderPanel() {
+  switch (state.app) {
+    case "booting":
+    case "warming": return cards.renderPanelMessage(S.panelBooting);
+    case "idle": return cards.renderPanelMessage(S.panelIdle);
+    case "waiting":
+    case "preparing":
+    case "boot-error": return cards.clearCards();
+    default: return undefined;
+  }
+}
+
+// UI-27: "Model loading…" grows a hint once loading has taken 45 s. The clock restarts whenever the model stops
+// being ready (a restarted server loads again).
+function watchLoading() {
+  clearTimeout(loadingTimer);
+  loadingLong = false;
+  if (state.modelReady) return;
+  loadingTimer = setTimeout(() => {
+    loadingLong = true;
+    renderHeader();
+  }, LOADING_LONG_MS);
+}
+
+function showUploadMessage(text) {
+  const message = $("upload-msg");
+  message.textContent = text;
+  clearTimeout(uploadMsgTimer);
+  uploadMsgTimer = setTimeout(() => { message.textContent = ""; }, UPLOAD_MSG_MS);
 }
 
 // --- Boot ------------------------------------------------------------------------------------------------------
@@ -215,29 +324,60 @@ function renderStrip(photos) {
   // Missing demo photos get their broken tile later (UI-88); for now they are left out of the strip.
   const shown = photos.filter((photo) => !photo.missing);
   for (const photo of shown) demoPhotos.set(photo.id, photo);
-  $("strip").replaceChildren(...shown.map(thumbnail));
+  $("strip").replaceChildren(...shown.map((photo) => thumbnail(photo.id, photo.image, photo.scene)));
+  renderThumbs();
 }
 
-function thumbnail(photo) {
+// An uploaded photo takes one slot at the end of the strip, just before the Upload tile; a later upload replaces
+// it (UI-33).
+function setUploadSlot(image) {
+  dropUploadSlot();
+  uploadSlot = { key: UPLOAD_PREFIX + image.id, image, name: image.name };
+  $("strip").append(thumbnail(uploadSlot.key, image, image.name, { uploaded: true }));
+  renderThumbs();
+}
+
+function dropUploadSlot() {
+  $("strip").querySelector(".thumb.is-upload")?.remove();
+  uploadSlot = null;
+}
+
+function photoFor(key) {
+  const photo = demoPhotos.get(key);
+  if (photo) return { key: photo.id, image: photo.image, name: photo.scene };
+  return uploadSlot?.key === key ? uploadSlot : null;
+}
+
+// A scene name is its own caption; an uploaded file loses its extension and keeps its last 10 characters, with
+// the full name in the tooltip (UI-33, UI-67).
+function thumbnail(key, image, name, { uploaded = false } = {}) {
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "thumb";
-  button.dataset.photo = photo.id;
-  button.title = photo.scene;
-  button.setAttribute("aria-label", S.thumbName(photo.scene));
+  button.className = uploaded ? "thumb is-upload" : "thumb";
+  button.dataset.photo = key;
+  button.dataset.name = name;
+  button.setAttribute("aria-label", S.thumbName(uploaded ? displayName(name) : name));
   const img = document.createElement("img");
-  img.src = photo.image.url;
+  img.src = image.url;
   img.alt = "";
   img.decoding = "async";
-  button.append(img, span("caption", photo.scene));
+  let caption = span("caption", name);
+  if (uploaded) {
+    const [head, tail] = splitMiddle(displayName(name));
+    caption = span("caption is-split", "");
+    // CSS never ellipses a line's first character; a zero-width word joiner takes that place, so a thumbnail
+    // too narrow for any of the head shows a clean "…" rather than a clipped letter.
+    caption.append(span("caption-head", head && `⁠${head}`), span("caption-tail", tail));
+  }
+  button.append(img, caption);
   return button;
 }
 
 function wireInputs() {
   const strip = $("strip");
   strip.addEventListener("click", (event) => {
-    const photo = demoPhotos.get(event.target.closest(".thumb")?.dataset.photo);
-    if (photo) dispatch({ type: "pick", key: photo.id, image: photo.image, name: photo.scene });
+    const photo = photoFor(event.target.closest(".thumb")?.dataset.photo);
+    if (photo) dispatch({ type: "pick", ...photo });
   });
   const fades = () => {
     strip.classList.toggle("fade-start", strip.scrollLeft > 1);
@@ -268,14 +408,24 @@ function wireInputs() {
     });
   }
 
-  $("upload-tile").addEventListener("click", () => $("upload-input").click());
+  $("upload-tile").addEventListener("click", () => {
+    if (config) $("upload-input").click();
+  });
   $("upload-input").addEventListener("change", (event) => {
     const [file] = event.target.files;
     event.target.value = "";   // choosing the same file again still counts
     if (!file) return;
+    if (file.size > config.max_upload_bytes) {
+      // Checked here first: the current result stays, and nothing is sent (UI-33).
+      showUploadMessage(S.tooManyBytes(file.name, megabytes(file.size), megabytes(config.max_upload_bytes)));
+      return;
+    }
     uploadFile = file;
     dispatch({ type: "upload", name: file.name });
   });
+
+  // A file dropped anywhere is swallowed, so the browser never navigates away from the demo (UI-33).
+  for (const type of ["dragover", "drop"]) window.addEventListener(type, (event) => event.preventDefault());
 }
 
 function span(className, text) {

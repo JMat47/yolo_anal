@@ -1,5 +1,5 @@
 // The stats slot under the photo: the "Scanning for …" line during a scan, then one row of tiles (UI-36 to
-// UI-40, PM-2, PM-4). Text goes in with textContent only.
+// UI-40, PM-2, PM-4), or the error bar (UI-35). Text goes in with textContent only.
 import { displayName, formatModelTime, splitMiddle } from "./format.js";
 import { S } from "./strings.js";
 
@@ -50,6 +50,35 @@ export function renderScanLine(vocabulary) {
   row.replaceChildren(line);
 }
 
+// In `error` an inline bar takes the slot (UI-35, UI-40): the message, the details line if there is one, and
+// "Scan again" when there is a photo to scan again (R21: upload rejections have none).
+export function renderErrorBar({ message, details = null, onRetry = null }) {
+  shown = null;
+  const bar = document.createElement("div");
+  bar.className = "error-bar";
+  bar.setAttribute("role", "alert");
+  const text = document.createElement("div");
+  text.className = "error-text";
+  text.append(paragraph("error-msg", message));
+  if (details) {
+    const line = paragraph("error-details", details);
+    line.title = details;   // one line on screen; the whole text in the tooltip and the server window
+    text.append(line);
+  }
+  const dot = span("error-dot", "");   // the header's failure red (UI-27), drawn in CSS
+  dot.setAttribute("aria-hidden", "true");
+  bar.append(dot, text);
+  if (onRetry) {
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "error-retry";
+    retry.textContent = S.scanAgain;
+    retry.addEventListener("click", onRetry);
+    bar.append(retry);
+  }
+  row.replaceChildren(bar);
+}
+
 export function setScanElapsed(seconds) {
   const counter = row.querySelector(".scan-elapsed");
   if (counter) counter.textContent = S.scanElapsed(seconds);
@@ -65,7 +94,7 @@ function draw({ findings, modelMs, photoName, uploaded, cached }, mode) {
   const tiles = [tile(S.statHazards, String(findings.length))];
   if (mode === "full") {
     for (const [category, { severity, count }] of categories) tiles.push(categoryTile(category, severity, count));
-  } else {
+  } else if (categories.size > 0) {   // an empty result has no category tiles to merge (UI-34)
     tiles.push(tile(S.statCategories, String(categories.size)));
   }
   tiles.push(timeTile(modelMs, cached));
@@ -97,8 +126,9 @@ function categoryTile(category, severity, count) {
 
 function timeTile(modelMs, cached) {
   const { value, unit } = formatModelTime(modelMs);
-  const node = tile(cached ? S.statModelTimeEarlier : S.statModelTime, `${value} `);
-  node.querySelector(".stat-value").append(span("stat-unit", unit));
+  const node = tile(cached ? S.statModelTimeEarlier : S.statModelTime, value);
+  // The no-break space sits in the unit's own small type, so the gap before "ms" is a normal space (UI-38).
+  node.querySelector(".stat-value").append(span("stat-unit", `\u00a0${unit}`));
   return node;
 }
 
@@ -128,6 +158,13 @@ function lineSample() {
   for (const [name, value] of Object.entries({ x1: 0, y1: 2, x2: 24, y2: 2 })) line.setAttribute(name, value);
   sample.append(line);
   return sample;
+}
+
+function paragraph(className, text) {
+  const node = document.createElement("p");
+  node.className = className;
+  node.textContent = text;
+  return node;
 }
 
 function span(className, text) {

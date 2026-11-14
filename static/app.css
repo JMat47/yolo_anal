@@ -230,7 +230,9 @@ button { font: inherit; color: inherit; }
   filter: grayscale(0.35) brightness(0.78);
   transition: filter 120ms ease-out;
 }
-.thumb:hover img { filter: grayscale(0.15) brightness(0.9); }
+.thumb:not(:disabled):hover img { filter: grayscale(0.15) brightness(0.9); }
+.thumb:disabled { cursor: default; }
+.thumb:disabled img { filter: grayscale(1) brightness(0.5); }   /* boot-error, server-lost: nothing can scan */
 .thumb[aria-current="true"] img { filter: none; }
 .thumb[aria-current="true"]::after {
   content: "";
@@ -249,6 +251,10 @@ button { font: inherit; color: inherit; }
   text-overflow: ellipsis;
   color: var(--ink-2);
 }
+/* An uploaded file's caption keeps its last 10 characters (UI-33). */
+.caption.is-split { display: flex; }
+.caption-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.caption-tail { flex: none; }
 @media (max-height: 699.98px) {
   .strip .caption {
     position: absolute;
@@ -276,7 +282,12 @@ button { font: inherit; color: inherit; }
   color: var(--ink-2);
   transition: color 120ms ease-out, border-color 120ms ease-out;
 }
-.upload:hover .upload-box { border-color: var(--hivis); color: var(--hivis); }
+.upload:not(:disabled):hover .upload-box { border-color: var(--hivis); color: var(--hivis); }
+.upload:disabled { cursor: default; }
+.upload:disabled .upload-box { color: var(--ink-3); }
+/* Preparing (UI-33): the tile pulses like the loading dot while the server checks the file. */
+.upload[aria-busy="true"] { cursor: progress; }
+.upload[aria-busy="true"] .upload-box { animation: dot-pulse 1.2s ease-in-out infinite; }
 .upload-msg {
   flex: 1 1 0;
   min-width: 0;
@@ -284,6 +295,7 @@ button { font: inherit; color: inherit; }
   font-size: var(--fs-label);
   line-height: 1.25;
   color: var(--ink-1);
+  overflow-wrap: anywhere;
 }
 
 /* Stage (UI-11, UI-13, UI-15). --ar and --frame-max are set from the photo once it decodes. */
@@ -317,7 +329,8 @@ button { font: inherit; color: inherit; }
   overflow: hidden;
   container-type: inline-size;
 }
-.stage:not(.has-photo) .frame { outline: 1px solid var(--rule); outline-offset: -1px; }
+.stage:not(.has-photo) .frame,
+.app[data-state="server-lost"] .frame { outline: 1px solid var(--rule); outline-offset: -1px; }
 #photo {
   position: absolute;
   inset: 0;
@@ -361,6 +374,64 @@ button { font: inherit; color: inherit; }
   transform: translateY(-100%);
   will-change: transform;
 }
+
+/* Stage message (UI-23, PM-13): one sentence centred in the frame, with the boot error's cause under it. */
+.stage-msg {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-6);
+}
+.stage-msg:empty { display: none; }
+.stage-msg-body { max-width: 30em; }
+.stage-msg-text {
+  margin: 0;
+  font-size: var(--fs-title);
+  font-weight: 600;
+  line-height: 1.3;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  color: var(--ink-1);
+}
+.stage-msg-detail {
+  margin: var(--space-3) 0 0;
+  font-size: var(--fs-label);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  color: var(--ink-2);
+}
+.stage-msg-detail .command { white-space: nowrap; color: var(--ink-1); }
+/* Waiting: the picked photo, dimmed as the scene dims it but with no grid or sweep, and the sentence on a plate. */
+.app[data-state="waiting"] .stage-msg { background: rgb(12 14 16 / 0.55); }
+.app[data-state="waiting"] .stage-msg-body {
+  padding: var(--space-3) var(--space-4);
+  border-radius: 2px;
+  background: var(--surface-0);
+}
+.app[data-state="waiting"] .stage-msg-text,
+.app[data-state="preparing"] .stage-msg-text { font-size: var(--fs-body); font-weight: 500; }
+.app[data-state="preparing"] .stage-msg-text { color: var(--ink-2); }
+/* Failures carry the header's red dot (UI-27), so the stage reads as stopped from across the room. */
+.app[data-state="boot-error"] .stage-msg-text::before,
+.app[data-state="server-lost"] .stage-msg-text::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: var(--space-2);
+  border-radius: 50%;
+  background: var(--sev-high-ink);
+  vertical-align: 0.15em;
+}
+/* Server lost (R6): the photo, overlays, stats and cards are hidden, not cleared, so recovery redraws nothing.
+   Boot error has no stats or cards to show. */
+.app[data-state="server-lost"] #photo,
+.app[data-state="server-lost"] .overlay,
+.app[data-state="server-lost"] .tags,
+.app[data-state="server-lost"] .stats,
+.app[data-state="server-lost"] .findings,
+.app[data-state="boot-error"] .stats { visibility: hidden; }
 
 /* Boxes and leaders (UI-14, UI-19, UI-20): the dash tells red from amber without hue. */
 .box, .leader, .tag { transition: opacity 120ms ease-out; }
@@ -451,6 +522,61 @@ button { font: inherit; color: inherit; }
 }
 .scan-words { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .scan-elapsed { flex: none; white-space: pre; }
+
+/* Error bar (UI-35, UI-40): in the stats slot, top-aligned so a wrapped message runs into the stage's bottom
+   padding instead of moving the photo. */
+.stats:has(> .error-bar) { overflow: visible; }
+.error-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--gap-group);
+  width: 100%;
+  min-width: 0;
+}
+.error-dot {
+  flex: none;
+  display: grid;
+  place-items: center;
+  height: calc(var(--fs-chip) * 1.25);
+}
+.error-dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sev-high-ink);
+}
+.error-text { flex: 1 1 auto; min-width: 0; }
+.error-msg {
+  margin: 0;
+  font-size: var(--fs-chip);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  color: var(--ink-1);
+}
+.error-details {
+  margin: var(--space-1) 0 0;
+  overflow: hidden;
+  font-size: var(--fs-label);
+  line-height: 1.25;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+.error-retry {
+  flex: none;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--surface-2);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--ink-1);
+  cursor: pointer;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.error-retry:hover { border-color: var(--ink-2); background: var(--surface-3); }
 
 /* Stats tiles (UI-37, UI-38, PM-4): sentence-case keys in medium weight; numbers in Mono; 24px apart with a
    1px rule centred in the gap. */
@@ -633,6 +759,29 @@ button { font: inherit; color: inherit; }
   line-height: 1.25;
   color: var(--ink-2);
 }
+
+/* Zero hazards (UI-34, PM-7): what the model found, every check that ran, then the sign-off. Neutral only. */
+.empty-objects { margin: 0; color: var(--ink-1); text-wrap: pretty; }
+.empty-checks { flex: none; }
+.checks-head {
+  margin: 0 0 var(--space-2);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+.check-list {   /* UI-69's rule-line role */
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-chip);
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+.check-list li { padding: var(--space-2) 0; border-top: 1px solid var(--rule); }
+.check-list li:last-child { border-bottom: 1px solid var(--rule); }
+.check-label { color: var(--ink-1); }
+.empty-signoff { margin: 0; font-size: var(--fs-label); line-height: 1.25; color: var(--ink-2); }
 
 .panel-msg {
   max-width: 34em;

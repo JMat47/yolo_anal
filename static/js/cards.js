@@ -1,11 +1,15 @@
-// The findings panel: at most 3 hazard cards (UI-101 to UI-105), the hidden-count line and the panel messages.
-// Text goes in with textContent only. Card titles and category labels come from the payload (config).
-import { hiddenLine, sentenceCase } from "./format.js";
+// The findings panel: at most 3 hazard cards (UI-101 to UI-105), the hidden-count line, the zero-hazard result
+// (UI-34, PM-7) and the panel messages. Text goes in with textContent only. Card titles, category labels, check
+// labels and prompt words come from the payload (config).
+import { hiddenLine, orList, sentenceCase } from "./format.js";
 import { REVEAL, highlight, revealDelay } from "./stage.js";
 import { S } from "./strings.js";
 
 const list = document.getElementById("findings-list");
+const heading = document.getElementById("panel-heading");
 const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
+const RISE = [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }];
+const SLOT = "\u0000";   // where a template's value goes when that value is built from nodes
 
 export function renderCards(findings, hiddenCount, { animate }) {
   const cards = findings.map(card);
@@ -16,16 +20,49 @@ export function renderCards(findings, hiddenCount, { animate }) {
   nodes.forEach((node, index) => {
     // A card fades in and rises once its box has wiped in and its tag has appeared (UI-91).
     const delay = revealDelay(Math.min(index, findings.length - 1), findings.length) + REVEAL.wipe + REVEAL.fade;
-    node.animate([{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }],
-      { duration: REVEAL.card, delay, easing: EASE_OUT, fill: "backwards" });
+    node.animate(RISE, { duration: REVEAL.card, delay, easing: EASE_OUT, fill: "backwards" });
   });
 }
 
+// No rule fired (UI-34, PM-7, R22): the heading says so, then what the model did find, then every check that
+// ran, then the sign-off line. Neutral colours only: nothing here reads as "safe".
+export function renderEmpty(payload) {
+  heading.textContent = S.panelHeadingEmpty;
+  const objects = paragraph("empty-objects", "");
+  if (payload.objects_found.length > 0) {
+    const items = payload.objects_found.flatMap((object, index) => [index > 0 ? ", " : "",
+      `${sentenceCase(object.item)} `, span("num", `${object.pct}%`)]);
+    objects.append(...slotted(S.objectsFound(SLOT), items));
+  } else {
+    objects.textContent = S.noObjects(payload.threshold_pct);
+  }
+
+  const checks = document.createElement("div");
+  checks.className = "empty-checks";
+  const rules = document.createElement("ul");
+  rules.className = "check-list";
+  rules.append(...payload.rules.map((rule) => {
+    const items = orList(rule.anchor_items);
+    const line = document.createElement("li");
+    line.append(...slotted(rule.anchor_found ? S.checkFound(SLOT, items) : S.checkMissing(SLOT, items),
+      [span("check-label", rule.check_label)]));
+    return line;
+  }));
+  checks.append(paragraph("checks-head", S.checkedHeading), rules);
+
+  const nodes = [objects, checks, paragraph("empty-signoff", S.signOff)];
+  list.replaceChildren(...nodes);
+  list.scrollTop = 0;
+  nodes.forEach((node) => node.animate(RISE, { duration: REVEAL.card, easing: EASE_OUT, fill: "backwards" }));
+}
+
 export function renderPanelMessage(text) {
+  heading.textContent = S.panelHeading;
   list.replaceChildren(paragraph("panel-msg", text));
 }
 
 export function clearCards() {
+  heading.textContent = S.panelHeading;
   list.replaceChildren();
 }
 
@@ -86,6 +123,12 @@ function chip(check) {
   node.append(`${sentenceCase(check.item)} `, status);
   if (found) node.append(" · ", span("num", `${check.pct}%`));
   return node;
+}
+
+// A template's text around its SLOT, with `nodes` in its place.
+function slotted(text, nodes) {
+  const [before, after] = text.split(SLOT);
+  return [before, ...nodes, after].filter((part) => part !== "");
 }
 
 function paragraph(className, text) {

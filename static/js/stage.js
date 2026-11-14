@@ -21,6 +21,7 @@ const frame = stage.querySelector(".frame");
 const overlay = frame.querySelector(".overlay");
 const tagLayer = frame.querySelector(".tags");
 const scene = sceneLayer();
+const message = messageLayer();
 
 let photoToken = 0;
 let drawn = null;             // {findings, nodes: Map(id -> {box, leader, tag})}
@@ -58,11 +59,7 @@ export async function showPhoto(image, alt) {
 
 export function clearPhoto() {
   photoToken++;
-  const img = document.getElementById("photo");
-  if (img) {
-    img.removeAttribute("src");
-    img.alt = "";
-  }
+  document.getElementById("photo")?.remove();   // a src-less <img> would draw the broken-image glyph
   stage.style.removeProperty("--ar");
   stage.style.removeProperty("--frame-max");
   stage.classList.remove("has-photo");
@@ -77,6 +74,43 @@ function photoElement() {
     frame.prepend(img);
   }
   return img;
+}
+
+// --- Stage message (UI-23) -------------------------------------------------------------------------------------
+
+// Waiting, preparing, boot-error and server-lost each put a sentence on the stage, with an optional detail line
+// under it (the health message in boot-error). null removes it. The layer stays in the DOM as a polite live
+// region; CSS hides it while it is empty.
+export function setMessage(text, detail = null) {
+  const key = text === null ? "" : `${text}\n${detail ?? ""}`;
+  if (message.dataset.key === key) return;   // unchanged: don't announce it again
+  message.dataset.key = key;
+  if (text === null) {
+    message.replaceChildren();
+    return;
+  }
+  const body = document.createElement("div");
+  body.className = "stage-msg-body";
+  body.append(textNode("p", "stage-msg-text", text));
+  if (detail) body.append(detailLine(detail));
+  message.replaceChildren(body);
+}
+
+// The boot error's cause names a path and a fix command in backticks; a command never breaks across lines.
+function detailLine(detail) {
+  const line = textNode("p", "stage-msg-detail", "");
+  detail.split(/(`[^`]+`)/).forEach((part, index) => {
+    if (part) line.append(index % 2 ? textNode("span", "command", part) : part);
+  });
+  return line;
+}
+
+function messageLayer() {
+  const layer = document.createElement("div");
+  layer.className = "stage-msg";
+  layer.setAttribute("role", "status");
+  frame.append(layer);
+  return layer;
 }
 
 // --- Scan scene (UI-29) ----------------------------------------------------------------------------------------
@@ -366,7 +400,11 @@ function setRect(rect, x, y, w, h) {
 }
 
 function textSpan(className, text) {
-  const node = document.createElement("span");
+  return textNode("span", className, text);
+}
+
+function textNode(tag, className, text) {
+  const node = document.createElement(tag);
   node.className = className;
   node.textContent = text;
   return node;
