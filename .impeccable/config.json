@@ -65,6 +65,24 @@
         ],
         "createdAt": "2026-11-14T15:04:25.410Z",
         "reason": "Agent: throwaway brainstorm mockups in .superpowers/ (git-ignored, not shipping UI); the real fixes are written into the UI requirements doc"
+      },
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "static/app.css"
+        ],
+        "createdAt": "2026-11-14T19:05:10.944Z",
+        "reason": "Agent: spec-mandated scan-scene grid: LD-4 (user decision: dim, faint grid, yellow sweep) and UI-29 (1px lines every 28px in --hivis at 7%); it is the measurement overlay of the scan, shown only during a scan"
+      },
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "static/index.html"
+        ],
+        "createdAt": "2026-11-14T19:05:17.647Z",
+        "reason": "Agent: same spec-mandated scan-scene grid (LD-4, UI-29) as static/app.css, seen through the page's linked stylesheet"
       }
     ]
   },

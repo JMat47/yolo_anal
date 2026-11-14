@@ -1,17 +1,191 @@
-// Boot: fills the static copy, renders the photo strip and keeps the header in step with /health.
+// The controller: every input becomes an event, reduce() decides the next state, and the effects it returns are
+// carried out here. Rendering that follows directly from the state (header, selected thumbnail, panel message)
+// happens in render().
 import * as api from "./api.js";
+import { displayName } from "./format.js";
+import * as stage from "./stage.js";
+import { initialState, reduce } from "./state.js";
 import { S } from "./strings.js";
 
 const POLL_LOADING_MS = 500;
-const POLL_READY_MS = 4000;
+const POLL_READY_MS = 4000;   // within UI-35's 5 s, fetch time included
 const RETRY_MS = 500;
+const UPLOAD_PREFIX = "upload:";
 
 const $ = (id) => document.getElementById(id);
-let modelReady = false;
+
+let state = initialState;
+let config = null;
+let health = null;
+const demoPhotos = new Map();   // id -> {id, scene, image}
+
+// The work in flight: one scan (or prepare), its scene, its timeout, and the file being uploaded.
+let request = null;             // AbortController
+let scene = null;
+let scanTimeout = 0;
+let elapsedTimer = 0;
+let sceneToken = 0;             // bumped whenever the stage is cleared, so a late reveal never draws
+let uploadFile = null;
 
 fillCopy();
-wireStrip();
+wireInputs();
 boot();
+
+function dispatch(event) {
+  const before = state;
+  const out = reduce(state, event);
+  state = out.state;
+  for (const effect of out.effects) run(effect);
+  if (state !== before) render(before);   // after the effects, so a cleared panel still gets its message
+}
+
+// --- Effects ---------------------------------------------------------------------------------------------------
+
+function run(effect) {
+  switch (effect.type) {
+    case "showPhoto": return showPhoto(effect);
+    case "clear": return clearStage();
+    case "scan": return startScan(effect.imageId, effect.seq);
+    case "abort": return stopWork();
+    case "prepare": return prepareUpload();
+    case "reveal": return reveal(effect.payload);
+    case "showEmpty": return settle();
+    case "showError": return settle();
+    case "showCached": return stage.drawOverlays(effect.payload.findings, { animate: false });
+    case "clearCache": return undefined;
+    default: return undefined;
+  }
+}
+
+function showPhoto({ key, image, name }) {
+  const alt = key.startsWith(UPLOAD_PREFIX) ? S.uploadAlt(displayName(name)) : S.photoAlt(name);
+  stage.showPhoto(image, alt).catch((err) => {
+    if (state.photoKey !== key) return;
+    dispatch({ type: "failed", seq: state.seq, error: { kind: err.message === "size-mismatch" ? "size-mismatch" : "unreadable" } });
+  });
+}
+
+function clearStage() {
+  sceneToken++;
+  stage.clearOverlays();
+  $("stats").replaceChildren();
+  $("findings-list").replaceChildren();
+}
+
+function startScan(imageId, seq) {
+  stopWork();
+  const token = ++sceneToken;
+  performance.mark("scan-start");
+  scene = stage.startScene({ passMs: config.min_scene_ms });
+  showScanLine();
+  request = new AbortController();
+  scanTimeout = setTimeout(() => dispatch({ type: "timeout", seq }), config.timeout_ms);
+  api.scan(imageId, seq, request.signal)
+    .then((payload) => dispatch({ type: "response", seq, payload }))
+    .catch((err) => {
+      if (token === sceneToken) dispatch({ type: "failed", seq, error: errorOf(err) });
+    });
+}
+
+// Stops whatever is in flight: the request, its timeout and the scene.
+function stopWork() {
+  request?.abort();
+  request = null;
+  clearTimeout(scanTimeout);
+  clearInterval(elapsedTimer);
+  scene?.cancel();
+  scene = null;
+}
+
+async function reveal(payload) {
+  const token = sceneToken;
+  await endScene();
+  if (token !== sceneToken) return;   // a newer pick cleared the stage while the scene was ending
+  $("stats").replaceChildren();
+  stage.drawOverlays(payload.findings, { animate: true });
+}
+
+async function settle() {
+  const token = sceneToken;
+  await endScene();
+  if (token === sceneToken) $("stats").replaceChildren();
+}
+
+async function endScene() {
+  clearTimeout(scanTimeout);
+  clearInterval(elapsedTimer);
+  request = null;
+  const ending = scene;
+  scene = null;
+  await ending?.finish();
+}
+
+function prepareUpload() {
+  stopWork();
+  const file = uploadFile;
+  request = new AbortController();
+  api.prepare(file, request.signal)
+    .then((image) => dispatch({ type: "prepared", key: UPLOAD_PREFIX + image.id, image, name: image.name }))
+    .catch((err) => dispatch({ type: "prepareFailed", error: errorOf(err) }));
+}
+
+const errorOf = (err) => (err instanceof api.ApiError ? { kind: err.kind, ...(err.body?.error ?? {}) }
+  : { kind: "unreadable" });
+
+// The "Scanning for …" line (UI-30): the prompt words from config, one line, with an elapsed counter after 5 s.
+function showScanLine() {
+  const words = S.scanLine(config.vocabulary);
+  const line = document.createElement("p");
+  line.className = "scan-line";
+  line.title = words;
+  const list = span("scan-words", words);
+  const elapsed = span("scan-elapsed", "");
+  line.append(list, elapsed);
+  $("stats").replaceChildren(line);
+  const started = performance.now();
+  elapsedTimer = setInterval(() => {
+    const seconds = Math.floor((performance.now() - started) / 1000);
+    if (seconds > 5) elapsed.textContent = S.scanElapsed(seconds);
+  }, 250);
+}
+
+// --- Rendering from state --------------------------------------------------------------------------------------
+
+function render(before) {
+  $("app").dataset.state = state.app;
+  renderHeader();
+  for (const thumb of $("strip").querySelectorAll(".thumb")) {
+    const current = thumb.dataset.photo === state.photoKey;
+    thumb.setAttribute("aria-current", current ? "true" : "false");
+    if (current && before.photoKey !== state.photoKey) thumb.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }
+  if (state.photoKey === null && before.photoKey !== null) stage.clearPhoto();
+  if (state.app !== before.app) {
+    if (state.app === "booting" || state.app === "warming") showPanelMessage(S.panelBooting);
+    if (state.app === "idle") showPanelMessage(S.panelIdle);
+  }
+}
+
+function renderHeader() {
+  const label = $("model-label");
+  const status = state.app === "server-lost" || state.app === "boot-error" ? "error"
+    : state.modelReady ? "ready" : "loading";
+  $("status-dot").closest(".model").dataset.health = status;
+  if (state.app === "server-lost") label.textContent = S.modelOffline;
+  else if (status === "error") label.textContent = S.modelError(health?.message ?? "");
+  else if (status === "ready") label.replaceChildren(`${S.modelActive} `, span("checkpoint", health?.model ?? ""));
+  else label.textContent = S.modelLoading;
+  label.title = status === "error" ? label.textContent : "";
+}
+
+function showPanelMessage(text) {
+  const message = document.createElement("p");
+  message.className = "panel-msg";
+  message.textContent = text;
+  $("findings-list").replaceChildren(message);
+}
+
+// --- Boot ------------------------------------------------------------------------------------------------------
 
 function fillCopy() {
   const words = S.wordmark.split(" ");
@@ -19,11 +193,11 @@ function fillCopy() {
   for (const node of document.querySelectorAll("[data-s]")) node.textContent = S[node.dataset.s];
   $("upload-tile").title = S.uploadTypes;
   showPanelMessage(S.panelBooting);
-  renderHeader({ state: "loading" });
+  renderHeader();
 }
 
 async function boot() {
-  let config, photos;
+  let photos;
   for (;;) {
     try {
       [config, photos] = await Promise.all([api.getConfig(), api.getPhotos()]);
@@ -40,29 +214,20 @@ async function boot() {
 
 async function pollHealth() {
   try {
-    const health = await api.getHealth();
-    renderHeader(health);
-    if (health.state === "ready" && !modelReady) showPanelMessage(S.panelIdle);
-    modelReady = health.state === "ready";
+    health = await api.getHealth();
+    dispatch({ type: "health", health });
   } catch {
-    // The server-lost state arrives with the state machine; until then the next poll simply retries.
+    dispatch({ type: "healthFailed" });
   }
-  setTimeout(pollHealth, modelReady ? POLL_READY_MS : POLL_LOADING_MS);
-}
-
-function renderHeader(health) {
-  const status = health.state === "ready" ? "ready" : health.state === "error" ? "error" : "loading";
-  const label = $("model-label");
-  $("status-dot").closest(".model").dataset.health = status;
-  if (status === "ready") label.replaceChildren(`${S.modelActive} `, span("checkpoint", health.model));
-  else if (status === "error") label.textContent = S.modelError(health.message);
-  else label.textContent = S.modelLoading;
-  label.title = status === "error" ? label.textContent : "";
+  const steady = state.modelReady && state.app !== "server-lost";
+  setTimeout(pollHealth, steady ? POLL_READY_MS : POLL_LOADING_MS);
 }
 
 function renderStrip(photos) {
   // Missing demo photos get their broken tile later (UI-88); for now they are left out of the strip.
-  $("strip").replaceChildren(...photos.filter((photo) => !photo.missing).map(thumbnail));
+  const shown = photos.filter((photo) => !photo.missing);
+  for (const photo of shown) demoPhotos.set(photo.id, photo);
+  $("strip").replaceChildren(...shown.map(thumbnail));
 }
 
 function thumbnail(photo) {
@@ -80,8 +245,12 @@ function thumbnail(photo) {
   return button;
 }
 
-function wireStrip() {
+function wireInputs() {
   const strip = $("strip");
+  strip.addEventListener("click", (event) => {
+    const photo = demoPhotos.get(event.target.closest(".thumb")?.dataset.photo);
+    if (photo) dispatch({ type: "pick", key: photo.id, image: photo.image, name: photo.scene });
+  });
   const fades = () => {
     strip.classList.toggle("fade-start", strip.scrollLeft > 1);
     strip.classList.toggle("fade-end", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1);
@@ -93,14 +262,15 @@ function wireStrip() {
     strip.scrollLeft += event.deltaY;
     event.preventDefault();
   }, { passive: false });
-  $("upload-tile").addEventListener("click", () => $("upload-input").click());
-}
 
-function showPanelMessage(text) {
-  const message = document.createElement("p");
-  message.className = "panel-msg";
-  message.textContent = text;
-  $("findings-list").replaceChildren(message);
+  $("upload-tile").addEventListener("click", () => $("upload-input").click());
+  $("upload-input").addEventListener("change", (event) => {
+    const [file] = event.target.files;
+    event.target.value = "";   // choosing the same file again still counts
+    if (!file) return;
+    uploadFile = file;
+    dispatch({ type: "upload", name: file.name });
+  });
 }
 
 function span(className, text) {

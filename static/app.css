@@ -326,7 +326,105 @@ button { font: inherit; color: inherit; }
   height: 100%;
   object-fit: contain;
 }
-.overlay, .tags { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.overlay, .tags {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  forced-color-adjust: none;   /* UI-14: boxes and tags keep their colours under forced colours */
+  transition: opacity 150ms ease-out;
+}
+.overlay.is-hidden, .tags.is-hidden { opacity: 0; }
+
+/* Scan scene (UI-29): dim, a faint 28px grid and one sweep band, all clipped by the frame. */
+.scene { position: absolute; inset: 0; visibility: hidden; opacity: 0; pointer-events: none; }
+.scene.is-on { visibility: visible; opacity: 1; }
+.scene-dim {
+  position: absolute;
+  inset: 0;
+  background-color: rgb(12 14 16 / 0.55);
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--hivis) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--hivis) 7%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.scene-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12%;
+  border-bottom: 1.5px solid var(--hivis);
+  background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--hivis) 22%, transparent));
+  transform: translateY(-100%);
+  will-change: transform;
+}
+
+/* Boxes and leaders (UI-14, UI-19, UI-20): the dash tells red from amber without hue. */
+.box, .leader, .tag { transition: opacity 120ms ease-out; }
+.box-keyline { fill: none; stroke: rgb(0 0 0 / 0.55); stroke-width: 1; }
+.box-line, .leader-line { fill: none; stroke-width: 3; }
+.box-outline { display: none; fill: none; stroke-width: 3; }
+.box.is-highlighted .box-outline { display: inline; }
+.sev-high .box-line, .sev-high .leader-line { stroke: var(--sev-high-fill); stroke-dasharray: 8 4; }
+.sev-med .box-line, .sev-med .leader-line { stroke: var(--sev-med); stroke-dasharray: 3 3; }
+.sev-high .box-outline { stroke: var(--sev-high-fill); }
+.sev-med .box-outline { stroke: var(--sev-med); }
+.sev-high .leader-dot { fill: var(--sev-high-fill); }
+.sev-med .leader-dot { fill: var(--sev-med); }
+.is-dimmed { opacity: 0.35; }
+
+/* Tags (UI-16, UI-17, UI-70, PM-10, PM-11a): opposite polarity per severity, scaled to the frame. */
+.tags {
+  --fs-tag-1: clamp(1.0625rem, min(3.2cqw, var(--fs-title)), 1.75rem);
+  --fs-tag-2: clamp(0.9375rem, 2.3cqw, 1.25rem);
+}
+.tag {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, auto);
+  align-items: center;
+  column-gap: var(--space-1);
+  max-width: clamp(140px, 42cqw, 320px);
+  padding-right: var(--space-2);
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
+}
+.tag.sev-high { background: var(--sev-high-fill); color: var(--on-sev-high); }
+.tag.sev-med { background: var(--sev-med); color: var(--on-sev-med); }
+.tag.is-highlighted { z-index: 1; }
+.tag[data-form="badge"] { padding: 0; }
+.tag[data-form="short"] { white-space: nowrap; }
+.tag-num {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  font-size: var(--fs-tag-2);
+  font-weight: 600;
+  line-height: 1;
+}
+.tag-cat {
+  grid-column: 2;
+  font-size: var(--fs-tag-1);
+  font-weight: 700;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+.tag-anchor {
+  grid-column: 2;
+  padding-bottom: var(--space-1);
+  font-size: var(--fs-tag-2);
+  line-height: 1.3;
+  text-wrap: balance;
+}
+.tag-anchor .num { font-weight: 400; }
+.tag-cat .num { font-weight: 400; font-size: var(--fs-tag-2); }
+.tag-probe { position: absolute; inset: 0; visibility: hidden; pointer-events: none; }
 
 /* Stats row slot (UI-36, PM-3) */
 .stats {
@@ -337,6 +435,19 @@ button { font: inherit; color: inherit; }
   display: flex;
   flex-wrap: nowrap;
 }
+/* "Scanning for …" (UI-30, PM-6): one line in the stats slot; the counter stays visible when the list ellipsises. */
+.scan-line {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--fs-chip);
+  line-height: 1.25;
+  color: var(--hivis);
+}
+.scan-words { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.scan-elapsed { flex: none; white-space: pre; }
 
 /* Findings panel (UI-41 to UI-46, PM-4, PM-9) */
 .panel {
