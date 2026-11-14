@@ -2,10 +2,13 @@
 
 import math
 from collections.abc import Mapping
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from hazard_demo.config import Config
 from hazard_demo.rules import Check, Evaluation, Finding, RuleOutcome, anchor_roles, select
+
+if TYPE_CHECKING:
+    from hazard_demo.imaging import PreparedImage
 
 
 def pct(score: float) -> int:
@@ -20,7 +23,7 @@ def grade(p: int, grades: Mapping[str, int]) -> Literal["high", "medium", "low"]
     return "low"
 
 
-def scan_payload(*, seq: int, ev: Evaluation, image: Any, model_ms: float, model: str, device: str,
+def scan_payload(*, seq: int, ev: Evaluation, image: "PreparedImage", model_ms: float, model: str, device: str,
                  cfg: Config) -> dict:
     shown, hidden = select(ev.findings, cfg.max_findings)
     above = sorted((role for role in cfg.prompts if ev.best[role] > cfg.threshold_for(role)),
@@ -41,7 +44,7 @@ def scan_payload(*, seq: int, ev: Evaluation, image: Any, model_ms: float, model
     }
 
 
-def _finding(fid: str, f: Finding, image: Any, cfg: Config) -> dict:
+def _finding(fid: str, f: Finding, image: "PreparedImage", cfg: Config) -> dict:
     x1, y1, x2, y2 = f.anchor.box
     confidence = pct(f.anchor.score)
     return {
