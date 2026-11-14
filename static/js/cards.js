@@ -1,6 +1,7 @@
 // The findings panel: at most 3 hazard cards (UI-101 to UI-105), the hidden-count line, the zero-hazard result
 // (UI-34, PM-7) and the panel messages. Text goes in with textContent only. Card titles, category labels, check
 // labels and prompt words come from the payload (config).
+import { reducedMotion, scrollBehavior } from "./dom.js";
 import { hiddenLine, orList, sentenceCase } from "./format.js";
 import { REVEAL, highlight, revealDelay } from "./stage.js";
 import { S } from "./strings.js";
@@ -9,6 +10,7 @@ const list = document.getElementById("findings-list");
 const heading = document.getElementById("panel-heading");
 const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
 const RISE = [{ opacity: 0, transform: "translateY(8px)" }, { opacity: 1, transform: "none" }];
+const FADE = [{ opacity: 0 }, { opacity: 1 }];
 const SLOT = "\u0000";   // where a template's value goes when that value is built from nodes
 
 export function renderCards(findings, hiddenCount, { animate }) {
@@ -17,6 +19,10 @@ export function renderCards(findings, hiddenCount, { animate }) {
   list.replaceChildren(...nodes);
   list.scrollTop = 0;   // each reveal starts at the top (UI-43)
   if (!animate) return;
+  if (reducedMotion()) {   // UI-93: the cards fade in with the boxes, with no rise or stagger
+    for (const node of nodes) node.animate(FADE, { duration: REVEAL.still, easing: EASE_OUT, fill: "backwards" });
+    return;
+  }
   nodes.forEach((node, index) => {
     // A card fades in and rises once its box has wiped in and its tag has appeared (UI-91).
     const delay = revealDelay(Math.min(index, findings.length - 1), findings.length) + REVEAL.wipe + REVEAL.fade;
@@ -53,12 +59,29 @@ export function renderEmpty(payload) {
   const nodes = [objects, checks, paragraph("empty-signoff", S.signOff)];
   list.replaceChildren(...nodes);
   list.scrollTop = 0;
-  nodes.forEach((node) => node.animate(RISE, { duration: REVEAL.card, easing: EASE_OUT, fill: "backwards" }));
+  const [frames, duration] = reducedMotion() ? [FADE, REVEAL.still] : [RISE, REVEAL.card];
+  nodes.forEach((node) => node.animate(frames, { duration, easing: EASE_OUT, fill: "backwards" }));
 }
 
 export function renderPanelMessage(text) {
   heading.textContent = S.panelHeading;
   list.replaceChildren(paragraph("panel-msg", text));
+}
+
+// A notice under the panel message, with a Dismiss button (UI-93's reduced-motion notice in idle).
+export function renderNotice(text, onDismiss) {
+  const notice = document.createElement("div");
+  notice.className = "notice";
+  const dismiss = document.createElement("button");
+  dismiss.type = "button";
+  dismiss.className = "text-button";
+  dismiss.textContent = S.dismiss;
+  dismiss.addEventListener("click", () => {
+    notice.remove();
+    onDismiss();
+  });
+  notice.append(paragraph("notice-text", text), dismiss);
+  list.append(notice);
 }
 
 export function clearCards() {
@@ -71,7 +94,7 @@ export function markCard(id) {
   for (const node of list.querySelectorAll("[data-card]")) {
     const on = node.dataset.card === id;
     node.classList.toggle("is-linked", on);
-    if (on) node.scrollIntoView({ block: "nearest" });
+    if (on) node.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
   }
 }
 

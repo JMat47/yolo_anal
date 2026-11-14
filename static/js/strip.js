@@ -1,6 +1,6 @@
 // The photo strip (UI-8, UI-9, UI-33): the demo thumbnails and the uploaded photo's slot before the Upload tile.
 // It knows which photo each thumbnail stands for; main.js decides what a pick does.
-import { span } from "./dom.js";
+import { scrollBehavior, span } from "./dom.js";
 import { displayName, splitMiddle } from "./format.js";
 import { S } from "./strings.js";
 
@@ -13,22 +13,32 @@ let uploadSlot = null;          // the uploaded photo's thumbnail: {key, image, 
 export const isUpload = (key) => key?.startsWith(UPLOAD_PREFIX) ?? false;
 
 export function renderStrip(photos) {
-  // Missing demo photos get their broken tile later (UI-88); for now they are left out of the strip.
-  const shown = photos.filter((photo) => !photo.missing);
-  for (const photo of shown) demoPhotos.set(photo.id, photo);
-  strip.replaceChildren(...shown.map((photo) => thumbnail(photo.id, photo.image, photo.scene)));
+  for (const photo of photos) if (!photo.missing) demoPhotos.set(photo.id, photo);
+  strip.replaceChildren(...photos.map((photo) => (photo.missing ? missingTile(photo)
+    : thumbnail(photo.id, photo.image, photo.scene))));
 }
 
 // current: the photo key on stage. locked: nothing can be scanned. waiting: a pick scans once the model is ready
 // (PM-13). moved: the photo on stage just changed, so its thumbnail scrolls into view.
 export function renderThumbs({ current, locked, waiting, moved }) {
-  for (const thumb of strip.querySelectorAll(".thumb")) {
+  for (const thumb of strip.querySelectorAll("button.thumb")) {
     const on = thumb.dataset.photo === current;
     thumb.setAttribute("aria-current", on ? "true" : "false");
     thumb.disabled = locked;
     thumb.title = waiting ? S.thumbWaitTitle : thumb.dataset.name;
-    if (on && moved) thumb.scrollIntoView({ block: "nearest", inline: "nearest" });
+    if (on && moved) thumb.scrollIntoView({ block: "nearest", inline: "nearest", behavior: scrollBehavior() });
   }
+}
+
+// The demo photo `step` places after (1) or before (-1) the one on stage, or null (UI-94). It never wraps, and
+// never lands on the uploaded photo or the Upload tile: from the upload slot, back goes to the last demo photo;
+// with nothing on stage, forward goes to the first.
+export function neighbour(key, step) {
+  const ids = [...demoPhotos.keys()];
+  const index = ids.indexOf(key);
+  if (index !== -1) return ids[index + step] ?? null;
+  if (isUpload(key)) return step < 0 ? ids.at(-1) ?? null : null;
+  return step > 0 ? ids[0] ?? null : null;
 }
 
 // An uploaded photo takes one slot at the end of the strip, just before the Upload tile; a later upload replaces
@@ -83,6 +93,16 @@ function thumbnail(key, image, name, { uploaded = false } = {}) {
   }
   button.append(img, caption);
   return button;
+}
+
+// A demo photo whose file is missing or unreadable (UI-88): a broken tile with the file name. It isn't a button,
+// so it can't be clicked or focused, and the arrows skip it.
+function missingTile(photo) {
+  const tile = document.createElement("div");
+  tile.className = "thumb is-missing";
+  tile.title = photo.file;
+  tile.append(span("missing-box", S.missingFile), span("caption", photo.file));
+  return tile;
 }
 
 // Edge fades on a scroller with hidden thumbnails, and the mouse wheel scrolling it sideways (UI-9).

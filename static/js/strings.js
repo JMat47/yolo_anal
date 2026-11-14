@@ -70,6 +70,7 @@ export const S = {
   chipMissing: "missing",
   hideBoxes: "Hide boxes",
   showBoxes: "Show boxes",
+  dismiss: "Dismiss",
 
   // Counts and times, used by format.js (UI-65, UI-68, UI-101)
   countNone: "No hazards flagged",
@@ -91,6 +92,7 @@ export const S = {
 
   // Screen reader (UI-68)
   liveScanComplete: (count, time) => `Scan complete. ${count}. Model time ${time}.`,
+  liveEarlierRun: (count, time) => `Earlier run. ${count}. Model time ${time}.`,
   boxName: (id, category, title, anchor, pct) => `Hazard ${id}, ${category}: ${title}. ${anchor} ${pct}%.`,
 
   // Notices (UI-93, T16)

@@ -1,5 +1,6 @@
 // The photo stage: the photo, the scan scene, and the boxes, leaders and tags drawn over it (UI-11 to UI-20,
 // UI-29, UI-91). Text goes in with textContent only.
+import { reducedMotion } from "./dom.js";
 import { sentenceCase } from "./format.js";
 import { placeTags } from "./placement.js";
 import { S } from "./strings.js";
@@ -13,7 +14,8 @@ const DOT_RADIUS = 3.5;       // the 7px leader dot
 const CATCH_UP_MS = 150;      // a late response: the sweep finishes its pass within this
 const FADE_MS = 150;          // the dim and grid fade before the first box
 const BAND_SHARE = 0.12;      // the sweep band is 12% of the frame height
-export const REVEAL = { maxStagger: 300, window: 1500, wipe: 240, fade: 120, card: 200 };
+// still: under reduced motion everything appears at once with this opacity fade (UI-93).
+export const REVEAL = { maxStagger: 300, window: 1500, wipe: 240, fade: 120, card: 200, still: 150 };
 const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
 
 const stage = document.getElementById("stage");
@@ -134,11 +136,14 @@ const BAND_END = `translateY(${(1 / BAND_SHARE - 1) * 100}%)`;   // the leading 
 
 // Starts the dim, grid and sweep. finish() lets the first pass complete (or catches a later pass up within
 // 150 ms), marks scene-end, fades the dim and grid out, then resolves. cancel() stops it at once.
+// Under reduced motion the band never enters the frame: it holds still above it, and its animation only keeps
+// the pass clock, so the scene still lasts a full pass or until the result (UI-93, LD-10).
 export function startScene({ passMs }) {
   const band = scene.querySelector(".scene-band");
   scene.getAnimations({ subtree: true }).forEach((a) => a.cancel());
   scene.classList.add("is-on");
-  let sweep = band.animate([{ transform: BAND_START }, { transform: BAND_END }],
+  const still = reducedMotion();
+  let sweep = band.animate([{ transform: BAND_START }, { transform: still ? BAND_START : BAND_END }],
     { duration: passMs, iterations: Infinity, easing: "linear" });
   let stopped = false;
   let release = () => {};
@@ -147,16 +152,21 @@ export function startScene({ passMs }) {
   async function finish() {
     if (stopped) return;
     const elapsed = sweep.currentTime ?? 0;
+    let done = sweep.finished;
     if (elapsed < passMs) {
-      sweep.effect.updateTiming({ iterations: 1, fill: "forwards" });
+      sweep.effect.updateTiming({ iterations: 1, fill: "forwards" });   // the first pass always completes
+    } else if (still) {
+      sweep.cancel();   // a still scene has nothing to catch up
+      done = Promise.resolve();
     } else {
       const progress = (elapsed % passMs) / passMs;
       const from = `translateY(${(-1 + progress / BAND_SHARE) * 100}%)`;
       sweep.cancel();
       sweep = band.animate([{ transform: from }, { transform: BAND_END }],
         { duration: Math.min(CATCH_UP_MS, (1 - progress) * passMs), easing: "ease-out", fill: "forwards" });
+      done = sweep.finished;
     }
-    if (!(await Promise.race([sweep.finished.then(() => true, () => false), cancelled]))) return;
+    if (!(await Promise.race([done.then(() => true, () => false), cancelled]))) return;
     performance.mark("scene-end");
     const fade = scene.animate([{ opacity: 1 }, { opacity: 0 }], { duration: FADE_MS, easing: "ease-out" });
     if (!(await Promise.race([fade.finished.then(() => true, () => false), cancelled]))) return;
@@ -183,7 +193,8 @@ export function clearOverlays() {
 }
 
 // findings: the payload's shown findings, in card order. With animate, each box wipes in, then its leader and
-// tag fade in, staggered so the whole reveal takes at most 1.5 s (UI-91).
+// tag fade in, staggered so the whole reveal takes at most 1.5 s (UI-91); under reduced motion they all fade in
+// together (UI-93).
 export function drawOverlays(findings, { animate }) {
   clearOverlays();
   const nodes = new Map();
@@ -200,6 +211,14 @@ export function revealDelay(index, count) {
 }
 
 function reveal(findings, nodes) {
+  if (reducedMotion()) {
+    const timing = { duration: REVEAL.still, easing: EASE_OUT, fill: "backwards" };
+    for (const { box, leader, tag } of nodes.values()) {
+      for (const node of [box, leader, tag]) node.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+    }
+    performance.mark("first-box");
+    return;
+  }
   findings.forEach((finding, index) => {
     const { box, leader, tag } = nodes.get(finding.id);
     const delay = revealDelay(index, findings.length);
@@ -213,6 +232,7 @@ function reveal(findings, nodes) {
   performance.mark("first-box");   // box 01's wipe starts now (R17)
 }
 
+// The overlay toggle (UI-21, R19): the boxes, leaders and tags fade out as two layers; the cards stay.
 export function setOverlaysVisible(visible) {
   overlay.classList.toggle("is-hidden", !visible);
   tagLayer.classList.toggle("is-hidden", !visible);
