@@ -3,11 +3,13 @@
 // message, panel message) happens in render(); CSS keyed on the root's data-state hides what a state hides (R6).
 import * as api from "./api.js";
 import * as cards from "./cards.js";
-import { countPhrase, displayName, errorCopy, megabytes, spokenTime, splitMiddle } from "./format.js";
+import { span } from "./dom.js";
+import { countPhrase, displayName, errorCopy, megabytes, spokenTime } from "./format.js";
 import * as stage from "./stage.js";
 import { initialState, reduce } from "./state.js";
 import * as stats from "./stats.js";
 import { S } from "./strings.js";
+import * as strip from "./strip.js";
 
 const POLL_LOADING_MS = 500;
 const POLL_READY_MS = 4000;      // within UI-35's 5 s, fetch time included
@@ -15,7 +17,6 @@ const RETRY_MS = 500;
 const LOADING_LONG_MS = 45000;   // UI-27: the label then adds "still loading, check the server window"
 const PREPARE_LIMIT_MS = 10000;  // UI-33: preparation over 10 s enters error
 const UPLOAD_MSG_MS = 8000;      // UI-33: a rejection checked in the page shows by the Upload tile for 8 s
-const UPLOAD_PREFIX = "upload:";
 const LOCKED = new Set(["boot-error", "server-lost"]);   // nothing can be scanned: thumbnails are disabled
 
 const $ = (id) => document.getElementById(id);
@@ -23,8 +24,6 @@ const $ = (id) => document.getElementById(id);
 let state = initialState;
 let config = null;
 let health = null;
-const demoPhotos = new Map();   // id -> {id, scene, image}
-let uploadSlot = null;          // the uploaded photo's thumbnail: {key, image, name}
 
 // The work in flight: one scan (or prepare), its scene, its time limit, and the file being uploaded.
 let request = null;             // AbortController
@@ -63,13 +62,13 @@ function run(effect) {
     case "showEmpty": return showEmpty(effect.payload);
     case "showError": return showError(effect.error);
     case "showCached": return stage.drawOverlays(effect.payload.findings, { animate: false });
-    case "clearCache": return dropUploadSlot();   // the server's image store was cleared with its cache
+    case "clearCache": return strip.dropUploadSlot();   // the server's image store was cleared with its cache
     default: return undefined;
   }
 }
 
 function showPhoto({ key, image, name }) {
-  const alt = isUpload(key) ? S.uploadAlt(displayName(name)) : S.photoAlt(name);
+  const alt = strip.isUpload(key) ? S.uploadAlt(displayName(name)) : S.photoAlt(name);
   stage.showPhoto(image, alt).catch((err) => {
     const kind = err.message === "size-mismatch" ? "size-mismatch" : "photo-not-shown";
     dispatch({ type: "photoFailed", key, error: { kind } });
@@ -122,7 +121,7 @@ async function reveal(payload) {
   stage.drawOverlays(payload.findings, { animate: true });
   cards.renderCards(payload.findings, payload.hidden_count, { animate: true });
   stats.renderStats({ findings: payload.findings, modelMs: payload.model_ms, photoName: state.name,
-    uploaded: isUpload(state.photoKey) });
+    uploaded: strip.isUpload(state.photoKey) });
   $("live").textContent = S.liveScanComplete(countPhrase(payload.findings.length), spokenTime(payload.model_ms));
 }
 
@@ -133,7 +132,7 @@ async function showEmpty(payload) {
   await endScene();
   if (token !== sceneToken) return;
   stats.renderStats({ findings: [], modelMs: payload.model_ms, photoName: state.name,
-    uploaded: isUpload(state.photoKey) });
+    uploaded: strip.isUpload(state.photoKey) });
   cards.renderEmpty(payload);
   $("live").textContent = S.liveScanComplete(countPhrase(0), spokenTime(payload.model_ms));
 }
@@ -182,8 +181,9 @@ function prepareUpload() {
     .then((image) => {
       if (!live()) return;
       finish();
-      setUploadSlot(image);
-      dispatch({ type: "prepared", key: UPLOAD_PREFIX + image.id, image, name: image.name });
+      const key = strip.setUploadSlot(image);
+      renderThumbs();
+      dispatch({ type: "prepared", key, image, name: image.name });
     })
     .catch((err) => {
       if (!live()) return;
@@ -194,8 +194,6 @@ function prepareUpload() {
 
 const errorOf = (err) => (err instanceof api.ApiError ? { kind: err.kind, ...(err.body?.error ?? {}) }
   : { kind: "unreadable" });
-
-const isUpload = (key) => key?.startsWith(UPLOAD_PREFIX) ?? false;
 
 // --- Rendering from state --------------------------------------------------------------------------------------
 
@@ -226,16 +224,12 @@ function renderHeader() {
 
 function renderThumbs(before = null) {
   const locked = LOCKED.has(state.app);
-  const waiting = !state.modelReady && !locked;   // a pick now scans once the model is ready (PM-13)
-  for (const thumb of $("strip").querySelectorAll(".thumb")) {
-    const current = thumb.dataset.photo === state.photoKey;
-    thumb.setAttribute("aria-current", current ? "true" : "false");
-    thumb.disabled = locked;
-    thumb.title = waiting ? S.thumbWaitTitle : thumb.dataset.name;
-    if (current && before && before.photoKey !== state.photoKey) {
-      thumb.scrollIntoView({ block: "nearest", inline: "nearest" });
-    }
-  }
+  strip.renderThumbs({
+    current: state.photoKey,
+    locked,
+    waiting: !state.modelReady && !locked,   // a pick now scans once the model is ready (PM-13)
+    moved: before !== null && before.photoKey !== state.photoKey,
+  });
 }
 
 // UI-23: the sentence a state puts on the stage, and the detail line under it.
@@ -305,7 +299,8 @@ async function boot() {
   }
   $("legend").textContent = S.legend(config.threshold_pct);
   $("version").textContent = config.version;
-  renderStrip(photos);
+  strip.renderStrip(photos);
+  renderThumbs();
   pollHealth();
 }
 
@@ -320,76 +315,8 @@ async function pollHealth() {
   setTimeout(pollHealth, steady ? POLL_READY_MS : POLL_LOADING_MS);
 }
 
-function renderStrip(photos) {
-  // Missing demo photos get their broken tile later (UI-88); for now they are left out of the strip.
-  const shown = photos.filter((photo) => !photo.missing);
-  for (const photo of shown) demoPhotos.set(photo.id, photo);
-  $("strip").replaceChildren(...shown.map((photo) => thumbnail(photo.id, photo.image, photo.scene)));
-  renderThumbs();
-}
-
-// An uploaded photo takes one slot at the end of the strip, just before the Upload tile; a later upload replaces
-// it (UI-33).
-function setUploadSlot(image) {
-  dropUploadSlot();
-  uploadSlot = { key: UPLOAD_PREFIX + image.id, image, name: image.name };
-  $("strip").append(thumbnail(uploadSlot.key, image, image.name, { uploaded: true }));
-  renderThumbs();
-}
-
-function dropUploadSlot() {
-  $("strip").querySelector(".thumb.is-upload")?.remove();
-  uploadSlot = null;
-}
-
-function photoFor(key) {
-  const photo = demoPhotos.get(key);
-  if (photo) return { key: photo.id, image: photo.image, name: photo.scene };
-  return uploadSlot?.key === key ? uploadSlot : null;
-}
-
-// A scene name is its own caption; an uploaded file loses its extension and keeps its last 10 characters, with
-// the full name in the tooltip (UI-33, UI-67).
-function thumbnail(key, image, name, { uploaded = false } = {}) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = uploaded ? "thumb is-upload" : "thumb";
-  button.dataset.photo = key;
-  button.dataset.name = name;
-  button.setAttribute("aria-label", S.thumbName(uploaded ? displayName(name) : name));
-  const img = document.createElement("img");
-  img.src = image.url;
-  img.alt = "";
-  img.decoding = "async";
-  let caption = span("caption", name);
-  if (uploaded) {
-    const [head, tail] = splitMiddle(displayName(name));
-    caption = span("caption is-split", "");
-    // CSS never ellipses a line's first character; a zero-width word joiner takes that place, so a thumbnail
-    // too narrow for any of the head shows a clean "…" rather than a clipped letter.
-    caption.append(span("caption-head", head && `⁠${head}`), span("caption-tail", tail));
-  }
-  button.append(img, caption);
-  return button;
-}
-
 function wireInputs() {
-  const strip = $("strip");
-  strip.addEventListener("click", (event) => {
-    const photo = photoFor(event.target.closest(".thumb")?.dataset.photo);
-    if (photo) dispatch({ type: "pick", ...photo });
-  });
-  const fades = () => {
-    strip.classList.toggle("fade-start", strip.scrollLeft > 1);
-    strip.classList.toggle("fade-end", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1);
-  };
-  strip.addEventListener("scroll", fades, { passive: true });
-  new ResizeObserver(fades).observe(strip);
-  strip.addEventListener("wheel", (event) => {
-    if (strip.scrollWidth <= strip.clientWidth || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-    strip.scrollLeft += event.deltaY;
-    event.preventDefault();
-  }, { passive: false });
+  strip.onPick((photo) => dispatch({ type: "pick", ...photo }));
 
   // A box or tag under the pointer highlights itself and marks its card (UI-20).
   const linked = (target) => target?.closest?.("[data-box], [data-tag]");
@@ -426,11 +353,4 @@ function wireInputs() {
 
   // A file dropped anywhere is swallowed, so the browser never navigates away from the demo (UI-33).
   for (const type of ["dragover", "drop"]) window.addEventListener(type, (event) => event.preventDefault());
-}
-
-function span(className, text) {
-  const node = document.createElement("span");
-  node.className = className;
-  node.textContent = text;
-  return node;
 }
