@@ -1,7 +1,7 @@
 # Site Hazard Detection
 
-A local demo that runs open-vocabulary YOLO-World on construction-site photos and turns what it finds, and what it
-doesn't find, into at most three hazard findings. It runs fully offline once set up.
+A local demo that runs the open-vocabulary YOLOE model (YOLOE-11-S) on construction-site photos and turns what it
+finds, and what it doesn't find, into at most three hazard findings. It runs fully offline once set up.
 
 ## Setup
 
@@ -81,7 +81,8 @@ encoder and no internet. After changing a prompt word, rebuild the model on the 
 uv run --group build hazard-demo build-model
 ```
 
-The `build` group adds the CLIP text encoder, which only `build-model` needs. A plain `uv run` or `uv sync`
-removes it again. Downloads (the base weights and the encoder) go to `models/.base/`, which git ignores.
+The `build` group adds the CLIP tokenizer for the MobileCLIP text encoder, which only `build-model` needs. A plain
+`uv run` or `uv sync` removes it again. Downloads (the base weights and the encoder) go to `models/.base/`, which git
+ignores.
 
 Tests: `uv run pytest` (fast), `uv run pytest -m model` (loads the real model, offline).

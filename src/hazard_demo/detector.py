@@ -91,13 +91,16 @@ def device_label(device: str) -> str:
 class UltralyticsBackend:
     def __init__(self, cfg: Config):
         verify_weights(cfg)
-        from ultralytics import YOLOWorld
+        if cfg.model_base.startswith("yoloe"):
+            from ultralytics import YOLOE as Loader
+        else:
+            from ultralytics import YOLOWorld as Loader
 
         self._cfg = cfg
         self._roles = list(cfg.prompts)
         self.name = cfg.model_name
         self.device = pick_device(cfg.device)
-        self._model = YOLOWorld(cfg.model_file)
+        self._model = Loader(cfg.model_file)
         self.names = list(self._model.names.values())
         if self.names != cfg.vocabulary:
             raise WeightsError("Model vocabulary differs from config/hazards.yaml. "

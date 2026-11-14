@@ -63,7 +63,7 @@ export const S = {
   panelBooting: "Loading the model. Photos can be scanned once it's ready.",
   panelIdle: "Choose a site photo above, or upload one.",
   panelError: "No results for this photo",
-  limits: "Limits: floor openings and uneven floors are often missed, as they are surfaces, not objects. " +
+  limits: "Limits: gaps in the floor and uneven floors are often missed, as they are surfaces, not objects. " +
     "Debris and piles of materials can be mistaken for each other.",
   confidence: "Confidence",
   chipFound: "found",

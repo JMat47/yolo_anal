@@ -1,13 +1,13 @@
 server: {port: 8765}
-model: {file: models/yolov8s-worldv2.pt, base: yolov8s-worldv2.pt, conf_floor: 0.05, imgsz: 640, device: auto}
+model: {file: models/yoloe-11s-seg.pt, base: yoloe-11s-seg.pt, conf_floor: 0.05, imgsz: 640, device: auto}
 scan: {min_scene_ms: 1500, timeout_ms: 20000}
 prompts:            # role: prompt word (shown on screen). Order = vocabulary order. Changing a word needs build-model.
   person: person
   hard_hat: hard hat
-  safety_vest: safety vest
+  safety_vest: high-visibility vest
   staircase: staircase
   railing: railing
-  floor_opening: floor opening
+  floor_opening: gap in the floor
   cable: cable
   debris: debris
   uneven_floor: uneven floor
@@ -20,7 +20,7 @@ confidence_grades: {high: 60, medium: 40}
 max_findings: 3
 hazards:
   fall_stair:   {category: Fall hazard, severity: high, titles: {default: Staircase without a railing}, check_label: Staircase without a railing}
-  fall_opening: {category: Fall hazard, severity: high, titles: {default: Floor opening without a railing}, check_label: Floor opening without a railing}
+  fall_opening: {category: Fall hazard, severity: high, titles: {default: Gap in the floor without a railing}, check_label: Gap in the floor without a railing}
   trip:         {category: Trip hazard, severity: medium, titles: {cable: Cable on the floor, debris: Debris on the floor, uneven_floor: Uneven floor}, check_label: "Cable, debris or uneven floor"}
-  no_ppe:       {category: No PPE, severity: high, titles: {both: No hard hat or safety vest, hard_hat: No hard hat, safety_vest: No safety vest}, check_label: Person without a hard hat or safety vest}
+  no_ppe:       {category: No PPE, severity: high, titles: {both: No hard hat or high-visibility vest, hard_hat: No hard hat, safety_vest: No high-visibility vest}, check_label: Person without a hard hat or high-visibility vest}
   materials:    {category: Materials dumped, severity: medium, titles: {default: Pile of materials}, check_label: Pile of materials}

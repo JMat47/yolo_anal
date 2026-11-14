@@ -17,8 +17,8 @@ def write_config(tmp_path: Path, edit) -> Path:
 
 def test_vocabulary_order():
     assert load_config().vocabulary == [
-        "person", "hard hat", "safety vest", "staircase", "railing",
-        "floor opening", "cable", "debris", "uneven floor", "pile of materials",
+        "person", "hard hat", "high-visibility vest", "staircase", "railing",
+        "gap in the floor", "cable", "debris", "uneven floor", "pile of materials",
     ]
 
 
@@ -31,8 +31,8 @@ def test_threshold_override(tmp_path):
 
 def test_model_paths_resolve_from_repo():
     cfg = load_config()
-    assert cfg.model_file == REPO_ROOT / "models/yolov8s-worldv2.pt"
-    assert cfg.model_name == "yolov8s-worldv2"
+    assert cfg.model_file == REPO_ROOT / "models/yoloe-11s-seg.pt"
+    assert cfg.model_name == "yoloe-11s-seg"
 
 
 def test_uneven_floor_may_be_removed(tmp_path):

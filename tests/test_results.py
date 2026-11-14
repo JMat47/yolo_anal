@@ -53,7 +53,7 @@ def test_payload_shape():
     assert len(p["rules"]) == 5
     assert p["model_ms"] == 48.2
     assert p["image"] == StandInImage().to_json()
-    assert (p["seq"], p["model"], p["device"]) == (3, "yolov8s-worldv2", "cpu")
+    assert (p["seq"], p["model"], p["device"]) == (3, "yoloe-11s-seg", "cpu")
 
 
 def test_payload_missing_check_has_no_pct():
@@ -80,7 +80,7 @@ def test_payload_uses_config_words():
     cfg = replace(CFG, prompts={**CFG.prompts, "hard_hat": "helmet"})
     p = payload([Detection("person", .91, PERSON)], cfg=cfg)
     assert "helmet" in p["vocabulary"]
-    assert [c["item"] for c in p["findings"][0]["checks"]] == ["person", "helmet", "safety vest"]
+    assert [c["item"] for c in p["findings"][0]["checks"]] == ["person", "helmet", "high-visibility vest"]
 
 
 def test_objects_found_sorted():

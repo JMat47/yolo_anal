@@ -52,20 +52,20 @@ def test_score_equal_to_threshold_is_missing():
 
 def test_floor_opening_without_railing_fires():
     ev = evaluate([d("floor_opening", .47, STAIR)], CFG)
-    assert [(f.hazard, f.title) for f in ev.findings] == [("fall_opening", "Floor opening without a railing")]
+    assert [(f.hazard, f.title) for f in ev.findings] == [("fall_opening", "Gap in the floor without a railing")]
     assert kinds(ev.findings[0]) == [("floor_opening", "found", "context"), ("railing", "missing", "safeguard")]
 
 
 def test_person_missing_both():
     (f,) = evaluate([d("person", .91, PERSON)], CFG).findings
-    assert f.title == "No hard hat or safety vest"
+    assert f.title == "No hard hat or high-visibility vest"
     assert kinds(f) == [("person", "found", "context"), ("hard_hat", "missing", "safeguard"),
                         ("safety_vest", "missing", "safeguard")]
 
 
 def test_person_with_hat_only():
     (f,) = evaluate([d("person", .91, PERSON), d("hard_hat", .7, HAT)], CFG).findings
-    assert f.title == "No safety vest"
+    assert f.title == "No high-visibility vest"
     assert kinds(f) == [("person", "found", "context"), ("hard_hat", "found", "safeguard"),
                         ("safety_vest", "missing", "safeguard")]
     assert f.checks[1].score == .7

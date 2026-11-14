@@ -23,7 +23,7 @@ SPACING_EXCEPTIONS = {
 SPACING_PROPS = re.compile(r"^(margin(-[a-z-]+)?|padding(-[a-z-]+)?|gap|row-gap|column-gap)$")
 SPACING_PART = re.compile(r"^(var\(--(space-\d+|gap-[a-z]+|gutter)\)|0|1px|3px|auto)$")
 
-BANNED = ["helmet", "hi-vis", "rubble", "handrail", "guardrail", "workers?", "negligence", "detected", "probability",
+BANNED = ["helmet", "hi-vis", "safety vest", "floor opening", "rubble", "handrail", "guardrail", "workers?", "negligence", "detected", "probability",
           "findings?", "AI", "the system", "the detector", "we", "smart", "real-time", "accuracy", "safe",
           "compliant", "verified", "proof of concept", "dissertation"]
 
@@ -118,7 +118,7 @@ def test_font_sizes_use_roles():
 def test_strings_free_of_banned_words():
     prompts = set(load_config().vocabulary)   # PM-16: a prompt word is always allowed on screen
     banned = [w for w in BANNED if w not in prompts]
-    pattern = re.compile(r"\b(" + "|".join(banned) + r")\b|(?<!safety )\bvest\b", re.I)
+    pattern = re.compile(r"\b(" + "|".join(banned) + r")\b|(?<!high-visibility )\bvest\b", re.I)
     texts = js_string_literals(STRINGS.read_text(encoding="utf-8"))
     texts += yaml_string_values(yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")))
     hits = [(t, m.group(0)) for t in texts for m in [pattern.search(t)] if m]
