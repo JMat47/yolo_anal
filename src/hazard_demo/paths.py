@@ -15,3 +15,11 @@ FONT_FILES: tuple[str, ...] = (
     "barlow-condensed-latin-600.woff2",
     "barlow-condensed-latin-700.woff2",
 )
+
+
+def display_path(path: Path) -> str:
+    """A path as people should read it: repo-relative with forward slashes when inside the repo."""
+    try:
+        return path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        return str(path)
