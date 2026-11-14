@@ -1,6 +1,7 @@
 """The scan flow on stage: the scene, then boxes and tags that land on the objects (UI-5, UI-13, UI-16, UI-29)."""
 
 import pytest
+from flows import mark_gap, open_ready, scan_upload, text_of
 from markers import BLUE, RED, MarkerBackend, marker_photo, scaled_rects
 
 from hazard_demo.config import load_config
@@ -29,34 +30,6 @@ def photos(tmp_path_factory):
     rects = scaled_rects(small, {RED: MARKERS[RED]})
     out["person"] = (marker_photo(folder / "person.jpg", small, rects), small, rects)
     return out
-
-
-def open_ready(page, app):
-    page.goto(app.url)
-    page.wait_for_function("() => document.querySelector('.model')?.dataset.health === 'ready'", timeout=15000)
-
-
-def scan_upload(page, path) -> dict:
-    """Uploads a photo, returns the scan payload once the reveal has finished."""
-    with page.expect_response("**/api/scan", timeout=20000) as response:
-        page.set_input_files("#upload-input", str(path))
-    payload = response.value.json()
-    page.wait_for_selector('[data-box="01"]', state="attached", timeout=10000)
-    wait_settled(page)
-    return payload
-
-
-def wait_settled(page):
-    page.wait_for_function("() => document.getAnimations().every(a => a.playState !== 'running')", timeout=10000)
-
-
-def mark_gap(page, start, end) -> float:
-    return page.evaluate(f"""() => performance.getEntriesByName('{end}').at(-1).startTime
-                                   - performance.getEntriesByName('{start}').at(-1).startTime""")
-
-
-def text_of(page, selector) -> str:
-    return page.evaluate(f"() => document.querySelector('{selector}').textContent.replace(/\\s+/g, ' ').trim()")
 
 
 MATRIX = [pytest.param(vp, aspect, id=f"{vp[0]}x{vp[1]}-{aspect}") for vp in VIEWPORTS for aspect in ASPECTS]
@@ -92,7 +65,8 @@ def test_boxes_align_with_markers(served_app, page_at, photos, viewport, aspect)
             return [g.dataset.box, [b.left, b.top, b.right, b.bottom]];
         }));
         return {content: [r.left + (r.width - w) / 2, r.top + (r.height - h) / 2, w, h],
-                frame: [frame.left, frame.top, frame.width, frame.height], natural: [img.naturalWidth, img.naturalHeight],
+                frame: [frame.left, frame.top, frame.width, frame.height],
+                natural: [img.naturalWidth, img.naturalHeight],
                 boxes};
     }""")
     cx, cy, cw, ch = geometry["content"]
@@ -126,7 +100,8 @@ def test_slow_response_extends_scene(served_app, page_at, photos):
     open_ready(page, app)
     page.set_input_files("#upload-input", str(photos["person"][0]))
     page.wait_for_function("() => performance.getEntriesByName('scan-start').length > 0", timeout=10000)
-    page.wait_for_function("() => performance.now() - performance.getEntriesByName('scan-start').at(-1).startTime >= 1800")
+    page.wait_for_function("() => performance.now() - performance.getEntriesByName('scan-start').at(-1).startTime"
+                           " >= 1800")
     band = page.evaluate("""() => {
         const band = document.querySelector('.scene-band');
         const r = band.getBoundingClientRect(), f = document.querySelector('.frame').getBoundingClientRect();

@@ -364,7 +364,9 @@ button { font: inherit; color: inherit; }
 
 /* Boxes and leaders (UI-14, UI-19, UI-20): the dash tells red from amber without hue. */
 .box, .leader, .tag { transition: opacity 120ms ease-out; }
-.box-keyline { fill: none; stroke: rgb(0 0 0 / 0.55); stroke-width: 1; }
+.box-keyline { fill: none; stroke: rgb(0 0 0 / 0.55); stroke-width: 1; pointer-events: all; }
+.tag { pointer-events: auto; }
+.tag-probe .tag { pointer-events: none; }
 .box-line, .leader-line { fill: none; stroke-width: 3; }
 .box-outline { display: none; fill: none; stroke-width: 3; }
 .box.is-highlighted .box-outline { display: inline; }
@@ -434,6 +436,7 @@ button { font: inherit; color: inherit; }
   container-type: inline-size;
   display: flex;
   flex-wrap: nowrap;
+  overflow: hidden;
 }
 /* "Scanning for …" (UI-30, PM-6): one line in the stats slot; the counter stays visible when the list ellipsises. */
 .scan-line {
@@ -448,6 +451,59 @@ button { font: inherit; color: inherit; }
 }
 .scan-words { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .scan-elapsed { flex: none; white-space: pre; }
+
+/* Stats tiles (UI-37, UI-38, PM-4): sentence-case keys in medium weight; numbers in Mono; 24px apart with a
+   1px rule centred in the gap. */
+.stat {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: 0 var(--space-3);
+  border-left: 1px solid var(--rule);
+}
+.stat:first-child { padding-left: 0; border-left: 0; }
+.stat-key {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-item);
+  font-size: var(--fs-label);
+  font-weight: 500;
+  line-height: 1.25;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.stat-key.sev-high { color: var(--sev-high-ink); }
+.stat-key.sev-med { color: var(--sev-med); }
+.stat-sample { flex: none; width: 24px; height: 4px; stroke: currentColor; stroke-width: 4; }
+.sev-high .stat-sample { stroke-dasharray: 8 4; }
+.sev-med .stat-sample { stroke-dasharray: 3 3; }
+.stat-value {
+  font-size: var(--fs-stat);
+  font-weight: 600;
+  line-height: 1.1;
+  white-space: nowrap;
+  color: var(--ink-1);
+}
+.stat-unit { font-family: var(--font-next); font-size: var(--fs-label); font-weight: 400; color: var(--ink-2); }
+.stat-photo {
+  flex: 0 1 auto;
+  align-items: flex-end;
+  margin-left: auto;
+  padding-right: 0;
+  border-left: 0;
+}
+.stat-photo .stat-value {
+  display: flex;
+  max-width: 100%;
+  font-family: var(--font-next);
+  font-size: var(--fs-body);
+  font-weight: 400;
+  color: var(--ink-2);
+}
+.photo-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.photo-tail { flex: none; }
 
 /* Findings panel (UI-41 to UI-46, PM-4, PM-9) */
 .panel {
@@ -501,6 +557,83 @@ button { font: inherit; color: inherit; }
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
+/* Hazard cards (UI-102 to UI-104, approved-cards.html "After"): number, category and confidence; the observed
+   title; found/missing chips. */
+.card {
+  --sev-ink: var(--sev-high-ink);
+  --sev-tint: var(--sev-high-tint);
+  flex: none;
+  padding: 14px 18px 16px;
+  border: 1px solid var(--rule);
+  background: var(--surface-2);
+  transition: box-shadow 120ms ease-out;
+}
+.card.sev-med { --sev-ink: var(--sev-med); --sev-tint: var(--sev-med-tint); }
+.card.is-linked { box-shadow: inset 3px 0 0 var(--sev-ink); }
+.card-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--gap-group); }
+.card-cat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap-item);
+  margin: 0;
+  font-size: var(--fs-label);
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sev-ink);
+}
+.card-num { font-weight: 600; color: var(--ink-2); }
+.card-conf {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--fs-label);
+  line-height: 1.3;
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+.card-conf b { font-size: var(--fs-conf); font-weight: 600; line-height: 1.1; }
+.grade-high b { color: var(--conf-high); }
+.grade-medium b { color: var(--ink-1); }
+.grade-low b { color: var(--ink-2); }
+.card-title {
+  margin: 6px 0 12px;
+  font-size: var(--fs-title);
+  font-weight: 700;
+  line-height: 1.3;
+  text-wrap: balance;
+  color: var(--ink-1);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-item);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-chip);
+  line-height: 1.3;
+}
+.chip {
+  padding: 4px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--surface-3);
+  white-space: nowrap;
+  color: var(--ink-1);
+}
+.chip b { font-weight: 700; }
+.chip-missing { border-color: var(--sev-ink); background: transparent; }
+.chip-evidence { border-color: var(--sev-ink); background: var(--sev-tint); }
+.hidden-line {
+  margin: 0;
+  font-size: var(--fs-label);
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+
 .panel-msg {
   max-width: 34em;
   margin: 0;

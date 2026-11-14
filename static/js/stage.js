@@ -187,6 +187,7 @@ export function setOverlaysVisible(visible) {
 // else fades to 35% (UI-20). null restores.
 export function highlight(id) {
   if (!drawn) return;
+  const lowered = overlay.querySelector(".box.is-highlighted");
   for (const [key, { box, leader, tag }] of drawn.nodes) {
     const on = key === id;
     const dim = id !== null && !on;
@@ -194,7 +195,18 @@ export function highlight(id) {
     tag.classList.toggle("is-highlighted", on);
     for (const node of [box, leader, tag]) node.classList.toggle("is-dimmed", dim);
   }
-  stackBoxes();
+  // Only the raised box moves: a moved SVG node restarts its style, so a box fading to 35% would snap.
+  const raised = id === null ? null : drawn.nodes.get(id)?.box;
+  if (lowered && lowered !== raised) overlay.insertBefore(lowered, slotFor(lowered));
+  if (raised) overlay.append(raised);
+}
+
+// Where a box belongs among the others, largest first, below the leaders.
+function slotFor(box) {
+  const area = Number(box.dataset.area);
+  const below = [...overlay.querySelectorAll(".box:not(.is-highlighted)")]
+    .find((other) => other !== box && Number(other.dataset.area) < area);
+  return below ?? overlay.querySelector(".leader");
 }
 
 function boxNode(finding) {
@@ -208,7 +220,8 @@ function boxNode(finding) {
 }
 
 function leaderNode(finding) {
-  const g = svg("g", { class: `leader sev-${severityClass(finding)}`, "data-leader": finding.id, "aria-hidden": "true" });
+  const g = svg("g", { class: `leader sev-${severityClass(finding)}`, "data-leader": finding.id,
+    "aria-hidden": "true" });
   g.append(svg("polyline", { class: "leader-line" }), svg("circle", { class: "leader-dot", r: DOT_RADIUS }));
   return g;
 }

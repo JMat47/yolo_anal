@@ -2,9 +2,11 @@
 // carried out here. Rendering that follows directly from the state (header, selected thumbnail, panel message)
 // happens in render().
 import * as api from "./api.js";
-import { displayName } from "./format.js";
+import * as cards from "./cards.js";
+import { countPhrase, displayName, spokenTime } from "./format.js";
 import * as stage from "./stage.js";
 import { initialState, reduce } from "./state.js";
+import * as stats from "./stats.js";
 import { S } from "./strings.js";
 
 const POLL_LOADING_MS = 500;
@@ -61,15 +63,17 @@ function showPhoto({ key, image, name }) {
   const alt = key.startsWith(UPLOAD_PREFIX) ? S.uploadAlt(displayName(name)) : S.photoAlt(name);
   stage.showPhoto(image, alt).catch((err) => {
     if (state.photoKey !== key) return;
-    dispatch({ type: "failed", seq: state.seq, error: { kind: err.message === "size-mismatch" ? "size-mismatch" : "unreadable" } });
+    const kind = err.message === "size-mismatch" ? "size-mismatch" : "unreadable";
+    dispatch({ type: "failed", seq: state.seq, error: { kind } });
   });
 }
 
 function clearStage() {
   sceneToken++;
   stage.clearOverlays();
-  $("stats").replaceChildren();
-  $("findings-list").replaceChildren();
+  stats.clearStats();
+  cards.clearCards();
+  $("live").textContent = "";
 }
 
 function startScan(imageId, seq) {
@@ -77,7 +81,12 @@ function startScan(imageId, seq) {
   const token = ++sceneToken;
   performance.mark("scan-start");
   scene = stage.startScene({ passMs: config.min_scene_ms });
-  showScanLine();
+  stats.renderScanLine(config.vocabulary);
+  const started = performance.now();
+  elapsedTimer = setInterval(() => {
+    const seconds = Math.floor((performance.now() - started) / 1000);
+    if (seconds > 5) stats.setScanElapsed(seconds);   // UI-30: an elapsed counter after 5 s
+  }, 250);
   request = new AbortController();
   scanTimeout = setTimeout(() => dispatch({ type: "timeout", seq }), config.timeout_ms);
   api.scan(imageId, seq, request.signal)
@@ -101,14 +110,17 @@ async function reveal(payload) {
   const token = sceneToken;
   await endScene();
   if (token !== sceneToken) return;   // a newer pick cleared the stage while the scene was ending
-  $("stats").replaceChildren();
   stage.drawOverlays(payload.findings, { animate: true });
+  cards.renderCards(payload.findings, payload.hidden_count, { animate: true });
+  stats.renderStats({ findings: payload.findings, modelMs: payload.model_ms, photoName: state.name,
+    uploaded: state.photoKey?.startsWith(UPLOAD_PREFIX) ?? false });
+  $("live").textContent = S.liveScanComplete(countPhrase(payload.findings.length), spokenTime(payload.model_ms));
 }
 
 async function settle() {
   const token = sceneToken;
   await endScene();
-  if (token === sceneToken) $("stats").replaceChildren();
+  if (token === sceneToken) stats.clearStats();
 }
 
 async function endScene() {
@@ -132,23 +144,6 @@ function prepareUpload() {
 const errorOf = (err) => (err instanceof api.ApiError ? { kind: err.kind, ...(err.body?.error ?? {}) }
   : { kind: "unreadable" });
 
-// The "Scanning for …" line (UI-30): the prompt words from config, one line, with an elapsed counter after 5 s.
-function showScanLine() {
-  const words = S.scanLine(config.vocabulary);
-  const line = document.createElement("p");
-  line.className = "scan-line";
-  line.title = words;
-  const list = span("scan-words", words);
-  const elapsed = span("scan-elapsed", "");
-  line.append(list, elapsed);
-  $("stats").replaceChildren(line);
-  const started = performance.now();
-  elapsedTimer = setInterval(() => {
-    const seconds = Math.floor((performance.now() - started) / 1000);
-    if (seconds > 5) elapsed.textContent = S.scanElapsed(seconds);
-  }, 250);
-}
-
 // --- Rendering from state --------------------------------------------------------------------------------------
 
 function render(before) {
@@ -161,8 +156,8 @@ function render(before) {
   }
   if (state.photoKey === null && before.photoKey !== null) stage.clearPhoto();
   if (state.app !== before.app) {
-    if (state.app === "booting" || state.app === "warming") showPanelMessage(S.panelBooting);
-    if (state.app === "idle") showPanelMessage(S.panelIdle);
+    if (state.app === "booting" || state.app === "warming") cards.renderPanelMessage(S.panelBooting);
+    if (state.app === "idle") cards.renderPanelMessage(S.panelIdle);
   }
 }
 
@@ -178,13 +173,6 @@ function renderHeader() {
   label.title = status === "error" ? label.textContent : "";
 }
 
-function showPanelMessage(text) {
-  const message = document.createElement("p");
-  message.className = "panel-msg";
-  message.textContent = text;
-  $("findings-list").replaceChildren(message);
-}
-
 // --- Boot ------------------------------------------------------------------------------------------------------
 
 function fillCopy() {
@@ -192,7 +180,7 @@ function fillCopy() {
   $("wordmark").replaceChildren(`${words.slice(0, -1).join(" ")} `, span("accent", words.at(-1)));
   for (const node of document.querySelectorAll("[data-s]")) node.textContent = S[node.dataset.s];
   $("upload-tile").title = S.uploadTypes;
-  showPanelMessage(S.panelBooting);
+  cards.renderPanelMessage(S.panelBooting);
   renderHeader();
 }
 
@@ -262,6 +250,23 @@ function wireInputs() {
     strip.scrollLeft += event.deltaY;
     event.preventDefault();
   }, { passive: false });
+
+  // A box or tag under the pointer highlights itself and marks its card (UI-20).
+  const linked = (target) => target?.closest?.("[data-box], [data-tag]");
+  for (const layer of document.querySelectorAll(".overlay, .tags")) {
+    layer.addEventListener("pointerover", (event) => {
+      const node = linked(event.target);
+      if (!node) return;
+      const id = node.dataset.box ?? node.dataset.tag;
+      stage.highlight(id);
+      cards.markCard(id);
+    });
+    layer.addEventListener("pointerout", (event) => {
+      if (!linked(event.target) || linked(event.relatedTarget)) return;
+      stage.highlight(null);
+      cards.markCard(null);
+    });
+  }
 
   $("upload-tile").addEventListener("click", () => $("upload-input").click());
   $("upload-input").addEventListener("change", (event) => {

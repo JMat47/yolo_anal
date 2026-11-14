@@ -97,7 +97,8 @@ function leaderFor(side, box, tag) {
   const tagFurther = tag[b] > box[b] + box[bSize];
   const start = tagFurther ? box[b] + box[bSize] : box[b];
   const turn = tag[a] + tag[aSize] / 2;
-  return { points: [point(boxEdge, start), point(turn, start), point(turn, tagFurther ? tag[b] : tag[b] + tag[bSize])] };
+  const tagEdgeAcross = tagFurther ? tag[b] : tag[b] + tag[bSize];
+  return { points: [point(boxEdge, start), point(turn, start), point(turn, tagEdgeAcross)] };
 }
 
 function crosses(points, rect) {

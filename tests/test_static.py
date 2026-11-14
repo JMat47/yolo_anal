@@ -16,7 +16,7 @@ SVG_NS = "http://www.w3.org/2000/svg"   # an identifier for createElementNS, nev
 # Selectors whose UI-102/UI-103 values are spec-mandated (§8 beats UI-2's general rule).
 SPACING_EXCEPTIONS = {
     (".card", "padding"): "14px 18px 16px",
-    (".card-conf b", "margin-left"): "6px",
+    (".card-conf", "gap"): "6px",
     (".card-title", "margin"): "6px 0 12px",
     (".chip", "padding"): "4px 10px",
 }

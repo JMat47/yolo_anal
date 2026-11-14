@@ -79,7 +79,10 @@ def marker_photo(path: Path, size: tuple[int, int], rects: dict[Colour, Rect],
     return path
 
 
-def scaled_rects(size: tuple[int, int], fractions: dict[Colour, tuple[float, float, float, float]]) -> dict[Colour, Rect]:
+Fractions = tuple[float, float, float, float]   # x, y, w, h as shares of the photo
+
+
+def scaled_rects(size: tuple[int, int], fractions: dict[Colour, Fractions]) -> dict[Colour, Rect]:
     w, h = size
     return {colour: (round(fx * w), round(fy * h), round(fw * w), round(fh * h))
             for colour, (fx, fy, fw, fh) in fractions.items()}
