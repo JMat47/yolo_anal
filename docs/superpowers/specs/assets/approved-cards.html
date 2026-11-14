@@ -1,0 +1,120 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Atkinson+Hyperlegible+Next:wght@400;500;700&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+<h2>Less crowded cards</h2>
+<p class="subtitle">Real size for 1366×768. Left is the current card; right is the decluttered version. In the new card the number joins the category line, the dashed line sample and the "● High" word are gone, titles are shorter (the chips already list what's missing), there is more space inside, and the confidence colour uses G1 (green / white / grey).</p>
+
+<style>
+  .cmp-wrap { overflow-x:auto; padding-bottom:8px; }
+  .cmp { display:flex; gap:32px; width:max-content; }
+  .cmp-col h3 { margin:0 0 4px; }
+  .cmp-col p.note { min-height:3.2em; margin:0 0 12px; max-width:492px; font-size:.92rem; opacity:.8; }
+
+  .pn { --s0:#121417; --s2:#23272d; --s3:#2e333a; --ink1:#ece9e2; --ink2:#a4a9b0; --ink3:#6b737d; --rule:#6b737d;
+        --hi:#f0604f; --hiT:#483133; --med:#e8912d; --medT:#43382d;
+        position:relative; width:492px; height:618px; background:var(--s0); color:var(--ink1); border:1px solid var(--rule);
+        display:grid; grid-template-rows:auto minmax(0,1fr) auto;
+        font-family:"Atkinson Hyperlegible Next", sans-serif; font-size:16px; line-height:1.45; letter-spacing:.01em;
+        font-variant-numeric:tabular-nums; text-align:left; }
+  .pn * { box-sizing:border-box; }
+  .pn .m { font-family:"Atkinson Hyperlegible Mono", monospace; letter-spacing:0; }
+  .pn-hd { padding:16px 20px 12px; }
+  .pn-hd h4 { margin:0 0 6px; font-family:"Barlow Condensed", sans-serif; font-weight:600; font-size:17.6px; letter-spacing:.04em; text-transform:uppercase; line-height:1.1; }
+  .pn-hd p { margin:0; font-size:14px; line-height:1.35; color:var(--ink2); letter-spacing:0; }
+  .pn-list { overflow-y:auto; padding:0 20px 24px; display:flex; flex-direction:column; gap:16px; scrollbar-width:thin; scrollbar-color:var(--rule) var(--s0);
+             -webkit-mask-image:linear-gradient(to bottom, #000 calc(100% - 40px), transparent); mask-image:linear-gradient(to bottom, #000 calc(100% - 40px), transparent); }
+  .pn-ft { display:flex; justify-content:space-between; gap:16px; padding:8px 20px 10px; font-size:14px; line-height:1.35; color:var(--ink2); letter-spacing:0; }
+  .pn-ft .v { flex:none; align-self:flex-end; }
+
+  .cd { background:var(--s2); border:1px solid var(--rule); flex:none; }
+  .cd-h { display:grid; grid-template-columns:auto 1fr 64px; column-gap:12px; padding:12px 16px 10px; align-items:center; }
+  .idx { font-family:"Atkinson Hyperlegible Mono", monospace; font-weight:600; font-size:35.2px; line-height:1; color:var(--ink3); letter-spacing:0; }
+  .cat { display:flex; align-items:center; gap:8px; font-weight:700; font-size:14px; letter-spacing:.06em; text-transform:uppercase; line-height:1.3; margin-bottom:2px; }
+  .smp { width:24px; height:0; border-top:4px dashed currentColor; flex:none; }
+  .smp.short { border-top-style:dotted; }
+  .ttl { font-weight:700; font-size:19.2px; line-height:1.3; text-wrap:balance; letter-spacing:0; }
+  .cf { text-align:right; }
+  .cf b { display:block; font-family:"Atkinson Hyperlegible Mono", monospace; font-weight:600; font-size:16px; line-height:1.2; }
+  .cf span { display:block; font-size:14px; line-height:1.3; color:var(--ink2); letter-spacing:0; margin-top:2px; }
+  .hi { color:var(--hi); } .med { color:var(--med); }
+
+  .yi { padding:4px 16px 14px; }
+  .lbl { display:block; font-size:14px; font-weight:500; color:var(--ink2); letter-spacing:0; line-height:1.3; margin-bottom:6px; }
+  .searched { font-size:14px; line-height:1.4; color:var(--ink2); letter-spacing:0; margin-bottom:8px; }
+  .searched q { quotes:none; color:var(--ink1); }
+
+  /* V1 equation */
+  .eq { display:flex; flex-wrap:wrap; align-items:center; gap:6px 6px; font-size:14px; line-height:1.3; letter-spacing:0; }
+  .chip { padding:4px 10px; border-radius:3px; border:1px solid var(--rule); background:var(--s3); white-space:nowrap; }
+  .chip b { font-weight:700; }
+  .chip.miss-hi { background:transparent; border-color:var(--hi); }
+  .chip.ev-med { background:var(--medT); border-color:var(--med); }
+  .op { color:var(--ink2); font-weight:700; padding:0 1px; }
+  .res { font-weight:700; padding:4px 0 4px 2px; white-space:nowrap; }
+  .arrow { display:inline-flex; align-items:center; color:var(--ink2); }
+
+  /* V2 sentence */
+  .sent { font-size:16px; line-height:1.45; }
+  .sent .f { font-weight:700; }
+  .sent .x { font-weight:700; }
+
+  .chips { display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 14px; font-size:14px; line-height:1.3; letter-spacing:0; }
+  .cd-h { grid-template-columns:auto 1fr auto; padding:12px 16px 10px; align-items:start; }
+  .conf2 { font-size:14px; line-height:1.3; color:var(--ink2); letter-spacing:0; white-space:nowrap; padding-top:2px; }
+  .conf2 b { font-family:"Atkinson Hyperlegible Mono", monospace; font-weight:600; font-size:16px; color:var(--ink1); margin-left:4px; }
+  .more { font-size:14px; line-height:1.35; color:var(--ink2); letter-spacing:0; padding:0 2px; }
+
+  .conf2 .g { display:block; text-align:right; font-size:14px; font-weight:700; letter-spacing:0; margin-top:1px; }
+  .t-high b, .t-high .g { color:#6ccf8c; }
+  .t-med b, .t-med .g { color:#ece9e2; }
+  .t-low b, .t-low .g { color:#a4a9b0; }
+  .r-high b, .r-high .g { color:#6ccf8c; }
+  .r-med b, .r-med .g { color:#e8912d; }
+  .r-low b, .r-low .g { color:#f0604f; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:currentColor; margin-right:6px; vertical-align:1px; }
+
+  .cd2 { background:var(--s2); border:1px solid var(--rule); flex:none; padding:14px 18px 16px; }
+  .cd2 .top { display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+  .cd2 .cat2 { font-weight:700; font-size:14px; letter-spacing:.06em; text-transform:uppercase; line-height:1.3; }
+  .cd2 .cat2 .n { font-family:"Atkinson Hyperlegible Mono", monospace; letter-spacing:0; margin-right:8px; color:var(--ink2); font-weight:600; }
+  .cd2 .cf3 { font-size:14px; color:var(--ink2); letter-spacing:0; white-space:nowrap; }
+  .cd2 .cf3 b { font-family:"Atkinson Hyperlegible Mono", monospace; font-weight:600; font-size:16px; margin-left:6px; }
+  .cd2 .ttl { margin:6px 0 12px; }
+  .cd2 .chips { padding:0; gap:8px; }
+  .c-high b { color:#6ccf8c; } .c-med b { color:#ece9e2; } .c-low b { color:#a4a9b0; }
+</style>
+
+<div class="cmp-wrap"><div class="cmp">
+<div class="cmp-col">
+  <h3>Before</h3>
+  <p class="note">The current card.</p>
+  <div class="pn">
+    <div class="pn-hd"><h4>Hazards flagged</h4><p>Confidence is the model's score for one object, not the chance a hazard is real. Scores of 25% or less count as missing.</p></div>
+    <div class="pn-list" style="-webkit-mask-image:none;mask-image:none">
+      <div class="cd"><div class="cd-h"><span class="idx">01</span><div><div class="cat hi"><i class="smp"></i>No PPE</div><div class="ttl">Person without a hard hat or safety vest</div></div><div class="conf2 t-high">Confidence<b>91%</b><span class="g"><i class="dot"></i>High</span></div></div>
+        <div class="chips"><span class="chip ">Person <b>found</b> · <span class="m">91%</span></span><span class="chip miss-hi">Hard hat <b>missing</b></span><span class="chip miss-hi">Safety vest <b>missing</b></span></div></div>
+      <div class="cd"><div class="cd-h"><span class="idx">02</span><div><div class="cat med"><i class="smp short"></i>Trip hazard</div><div class="ttl">Cable on the floor</div></div><div class="conf2 t-med">Confidence<b>52%</b><span class="g"><i class="dot"></i>Medium</span></div></div>
+        <div class="chips"><span class="chip ev-med">Cable <b>found</b> · <span class="m">52%</span></span></div></div>
+      <div class="cd"><div class="cd-h"><span class="idx">03</span><div><div class="cat med"><i class="smp short"></i>Trip hazard</div><div class="ttl">Debris on the floor</div></div><div class="conf2 t-low">Confidence<b>33%</b><span class="g"><i class="dot"></i>Low</span></div></div>
+        <div class="chips"><span class="chip ev-med">Debris <b>found</b> · <span class="m">33%</span></span></div></div>
+    </div>
+    <div class="pn-ft"><span>Limits: floor openings and uneven floors are often missed, as they are surfaces, not objects.</span><span class="v m">v0.1</span></div>
+  </div>
+</div>
+<div class="cmp-col">
+  <h3>After</h3>
+  <p class="note">Decluttered.</p>
+  <div class="pn">
+    <div class="pn-hd"><h4>Hazards flagged</h4><p>Confidence is the model's score for one object, not the chance a hazard is real. Scores of 25% or less count as missing.</p></div>
+    <div class="pn-list" style="-webkit-mask-image:none;mask-image:none">
+      <div class="cd2"><div class="top"><div class="cat2 hi"><span class="n">01</span>No PPE</div><div class="cf3 c-high">Confidence<b>91%</b></div></div>
+        <div class="ttl">No hard hat or safety vest</div><div class="chips"><span class="chip ">Person <b>found</b> · <span class="m">91%</span></span><span class="chip miss-hi">Hard hat <b>missing</b></span><span class="chip miss-hi">Safety vest <b>missing</b></span></div></div>
+      <div class="cd2"><div class="top"><div class="cat2 med"><span class="n">02</span>Trip hazard</div><div class="cf3 c-med">Confidence<b>52%</b></div></div>
+        <div class="ttl">Cable on the floor</div><div class="chips"><span class="chip ev-med">Cable <b>found</b> · <span class="m">52%</span></span></div></div>
+      <div class="cd2"><div class="top"><div class="cat2 med"><span class="n">03</span>Trip hazard</div><div class="cf3 c-low">Confidence<b>33%</b></div></div>
+        <div class="ttl">Debris on the floor</div><div class="chips"><span class="chip ev-med">Debris <b>found</b> · <span class="m">33%</span></span></div></div>
+    </div>
+    <div class="pn-ft"><span>Limits: floor openings and uneven floors are often missed, as they are surfaces, not objects.</span><span class="v m">v0.1</span></div>
+  </div>
+</div>
+</div></div>

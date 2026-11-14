@@ -1,0 +1,78 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "undersized-ui-text",
+        "value": "*",
+        "files": [
+          "docs/superpowers/specs/assets/approved-mockup.html"
+        ],
+        "createdAt": "2026-11-14T14:41:45.274Z",
+        "reason": "Agent: frozen reference copy of the approved brainstorm mockup, not shipping UI; these issues are recorded in the 2026-11-14 critique and fixed by the UI requirements doc"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "docs/superpowers/specs/assets/approved-mockup.html"
+        ],
+        "createdAt": "2026-11-14T14:41:45.288Z",
+        "reason": "Agent: frozen reference copy of the approved brainstorm mockup, not shipping UI; these issues are recorded in the 2026-11-14 critique and fixed by the UI requirements doc"
+      },
+      {
+        "rule": "low-contrast",
+        "value": "*",
+        "files": [
+          "docs/superpowers/specs/assets/approved-mockup.html"
+        ],
+        "createdAt": "2026-11-14T14:41:45.302Z",
+        "reason": "Agent: frozen reference copy of the approved brainstorm mockup, not shipping UI; these issues are recorded in the 2026-11-14 critique and fixed by the UI requirements doc"
+      },
+      {
+        "rule": "tiny-text",
+        "value": "*",
+        "files": [
+          "docs/superpowers/specs/assets/approved-mockup.html"
+        ],
+        "createdAt": "2026-11-14T14:41:45.314Z",
+        "reason": "Agent: frozen reference copy of the approved brainstorm mockup, not shipping UI; these issues are recorded in the 2026-11-14 critique and fixed by the UI requirements doc"
+      },
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "docs/superpowers/specs/assets/approved-mockup.html"
+        ],
+        "createdAt": "2026-11-14T14:41:45.326Z",
+        "reason": "Agent: frozen reference copy of the approved brainstorm mockup, not shipping UI; these issues are recorded in the 2026-11-14 critique and fixed by the UI requirements doc"
+      },
+      {
+        "rule": "tight-leading",
+        "value": "*",
+        "files": [
+          ".superpowers/**"
+        ],
+        "createdAt": "2026-11-14T15:04:25.398Z",
+        "reason": "Agent: throwaway brainstorm mockups in .superpowers/ (git-ignored, not shipping UI); the real fixes are written into the UI requirements doc"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          ".superpowers/**"
+        ],
+        "createdAt": "2026-11-14T15:04:25.410Z",
+        "reason": "Agent: throwaway brainstorm mockups in .superpowers/ (git-ignored, not shipping UI); the real fixes are written into the UI requirements doc"
+      }
+    ]
+  },
+  "hook": {
+    "enabled": true,
+    "limits": {
+      "maxFindings": 5,
+      "maxChars": 8000
+    }
+  }
+}

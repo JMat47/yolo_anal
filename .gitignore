@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.superpowers/
+models/.base/
+artifacts/
+.pytest_cache/
+.claude/settings.local.json
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+demo/incoming/

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Site Hazard Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Atkinson+Hyperlegible+Mono:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  .hz { --bg:#141619; --panel:#1b1e22; --card:#21252b; --line:#2b3037; --ink:#e9e6df; --muted:#8c9198; --faint:#5d636b;
+        --hivis:#f0c02f; --red:#e04a3c; --amber:#e8912d; --ok:#4f9a64;
+        background:var(--bg); color:var(--ink); border-radius:6px; overflow:hidden; border:1px solid #0c0d0f; 
+        font-family:"Atkinson Hyperlegible Next", sans-serif; font-size:13.5px; line-height:1.45; }
+  .hz * { box-sizing:border-box; }
+  .hz .n { font-family:"Atkinson Hyperlegible Mono", monospace; font-variant-numeric:tabular-nums; }
+
+  .top { display:flex; justify-content:space-between; align-items:center; padding:14px 20px 12px; border-bottom:1px solid var(--line); }
+  .name { font-family:"Barlow Condensed", sans-serif; font-weight:700; font-size:22px; text-transform:uppercase; letter-spacing:.01em; line-height:1; }
+  .name span { color:var(--hivis); }
+  .model { font-family:"IBM Plex Mono", monospace; font-size:11.5px; color:var(--muted); display:flex; align-items:center; gap:7px; }
+  .model i { width:7px; height:7px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 3px rgba(79,154,100,.18); }
+  .model b { color:var(--ink); font-weight:500; }
+
+  .strip { display:flex; gap:10px; padding:12px 20px; border-bottom:1px solid var(--line); background:#17191c; }
+  .th { width:96px; flex:none; }
+  .th img { width:96px; height:62px; object-fit:cover; display:block; filter:grayscale(.35) brightness(.78); border-radius:2px; }
+  .th div { font-size:10.5px; color:var(--faint); margin-top:4px; }
+  .th.on img { filter:none; } .th.on div { color:var(--ink); }
+  .th.on { border-bottom:2px solid var(--hivis); padding-bottom:3px; }
+
+  .main { display:grid; grid-template-columns:minmax(0,1.25fr) minmax(0,1fr); }
+  .stage { padding:18px 20px 20px; border-right:1px solid var(--line); }
+  .photo { position:relative; border-radius:2px; overflow:hidden; }
+  .photo img { display:block; width:100%; height:auto; }
+  .dim { position:absolute; inset:0; background:rgba(12,14,16,.55);
+         background-image:linear-gradient(rgba(240,192,47,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(240,192,47,.07) 1px,transparent 1px);
+         background-size:28px 28px; animation:kDim 8s infinite; }
+  .scan { position:absolute; left:0; right:0; height:90px; margin-top:-90px; background:linear-gradient(to bottom, rgba(240,192,47,0), rgba(240,192,47,.22));
+          border-bottom:1.5px solid var(--hivis); animation:kScan 8s infinite; }
+  .status { position:relative; margin-top:10px; font-size:12px; color:var(--muted); height:18px; }
+  .status > span { position:absolute; left:0; top:0; white-space:nowrap; }
+  .s-scan { color:var(--hivis); animation:kShowScan 8s infinite; }
+  .s-done { animation:kShowDone 8s infinite; } .s-done b { color:var(--ink); font-weight:600; }
+
+  .bx { position:absolute; border:2px dashed var(--sev); background:rgba(224,74,60,.07); opacity:0; }
+  .bx1 { left:13.2%; top:8.4%; width:35%; height:67%; animation:kBox1 8s infinite; }
+  .bx2 { left:0.5%; top:74%; width:42%; height:24.5%; animation:kBox2 8s infinite; background:rgba(232,145,45,.07); }
+  .tag { position:absolute; background:var(--sev); color:#fff; padding:7px 10px 8px; line-height:1.2; opacity:0; box-shadow:0 2px 10px rgba(0,0,0,.35); }
+  .tag .t { font-weight:700; font-size:15px; }
+  .tag .c { font-size:11.5px; opacity:.92; margin-top:1px; }
+  .tag .s { display:flex; gap:6px; margin-top:7px; flex-wrap:wrap; }
+  .tag1 { left:53.6%; top:16%; min-width:30%; max-width:44%; min-height:19%; animation:kBox1 8s infinite; }
+  .tag2 { left:46%; top:83%; animation:kBox2 8s infinite; color:#1a1206; }
+  .lead { position:absolute; height:0; border-top:1.5px dashed var(--sev); opacity:0; }
+  .lead::before { content:""; position:absolute; left:-4px; top:-4.5px; width:7px; height:7px; border-radius:50%; background:var(--sev); }
+  .ld1 { left:48.2%; width:5.4%; top:25%; animation:kFade1 8s infinite; }
+  .ld2 { left:42.5%; width:3.5%; top:89%; animation:kFade2 8s infinite; }
+
+  .chip { border-radius:3px; padding:2px 7px; font-size:11.5px; white-space:nowrap; }
+  .chip.ok  { background:rgba(79,154,100,.16); color:#9fd3ae; border:1px solid rgba(79,154,100,.35); }
+  .chip.bad { background:rgba(224,74,60,.16); color:#f2a49b; border:1px solid rgba(224,74,60,.4); }
+  .chip em { font-style:normal; opacity:.75; margin-left:4px; text-transform:uppercase; font-size:10px; letter-spacing:.06em; }
+  .tag .chip.bad { background:rgba(255,255,255,.16); color:#fff; border-color:rgba(255,255,255,.4); }
+
+  .side { padding:18px 20px 20px; background:var(--panel); }
+  .side-hd { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px; }
+  .side-hd h4 { margin:0; font-family:"Barlow Condensed", sans-serif; font-weight:600; font-size:15px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  .side-hd span { font-size:11px; color:var(--faint); }
+  .cards { position:relative; min-height:380px; }
+  .wait { position:absolute; left:0; right:0; color:var(--faint); font-size:12px; padding:22px 0; border-top:1px dashed var(--line); border-bottom:1px dashed var(--line); text-align:center; animation:kShowScan 8s infinite; }
+
+  .cd { background:var(--card); border:1px solid var(--line); margin-bottom:12px; opacity:0; }
+  .cd.k1 { animation:kCard1 8s infinite; } .cd.k2 { animation:kCard2 8s infinite; }
+  .hd { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px; padding:10px 12px 9px; border-bottom:1px solid var(--line); }
+  .num { font-size:26px; font-weight:600; color:#3d434c; line-height:1; letter-spacing:-.02em; }
+  .ov { display:block; font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sev); margin-bottom:1px; }
+  .ttl { font-weight:700; font-size:15.5px; }
+  .conf { display:flex; flex-direction:column; align-items:flex-end; gap:4px; font-size:12.5px; }
+  .conf i { display:block; width:54px; height:3px; background:#343a42; } .conf i b { display:block; height:100%; background:var(--hivis); }
+  .row { padding:8px 12px 0; }
+  .lbl { display:block; font-size:10.5px; letter-spacing:.07em; color:var(--muted); text-transform:uppercase; font-weight:500; }
+  .chk { margin-top:10px; padding:9px 12px 11px; border-top:1px dashed var(--line); display:flex; flex-wrap:wrap; gap:6px 8px; }
+
+  .foot { display:flex; justify-content:flex-end; padding:8px 20px; border-top:1px solid var(--line); font-family:"IBM Plex Mono", monospace; font-size:10.5px; color:var(--faint); }
+
+  @keyframes kScan { 0% {top:0; opacity:1} 30% {top:calc(100% + 90px); opacity:1} 31%,100% {opacity:0} }
+  @keyframes kDim { 0%,30% {opacity:1} 36%,100% {opacity:0} }
+  @keyframes kShowScan { 0%,30% {opacity:1} 32%,100% {opacity:0} }
+  @keyframes kShowDone { 0%,32% {opacity:0} 35%,96% {opacity:1} 100% {opacity:0} }
+  @keyframes kBox1 { 0%,32% {opacity:0; clip-path:inset(0 100% 0 0)} 38%,96% {opacity:1; clip-path:inset(0 0 0 0)} 100% {opacity:0; clip-path:inset(0 0 0 0)} }
+  @keyframes kBox2 { 0%,40% {opacity:0; clip-path:inset(0 100% 0 0)} 46%,96% {opacity:1; clip-path:inset(0 0 0 0)} 100% {opacity:0; clip-path:inset(0 0 0 0)} }
+  @keyframes kFade1 { 0%,35% {opacity:0} 39%,96% {opacity:1} 100% {opacity:0} }
+  @keyframes kFade2 { 0%,43% {opacity:0} 47%,96% {opacity:1} 100% {opacity:0} }
+  @keyframes kCard1 { 0%,35% {opacity:0; transform:translateY(8px)} 40%,96% {opacity:1; transform:none} 100% {opacity:0} }
+  @keyframes kCard2 { 0%,43% {opacity:0; transform:translateY(8px)} 48%,96% {opacity:1; transform:none} 100% {opacity:0} }
+
+  html, body { margin:0; height:100%; background:#141619; }
+  .hz { border:0; border-radius:0; height:100vh; display:flex; flex-direction:column; }
+  .main { flex:1; min-height:0; grid-template-columns:minmax(0,1fr) 460px; }
+  .stage { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px 28px; }
+  .photo { width:min(100%, calc((100vh - 280px) * 382 / 344)); aspect-ratio:382/344; }
+  .photo img { width:100%; height:100%; object-fit:cover; }
+  .status { width:min(100%, calc((100vh - 280px) * 382 / 344)); }
+  .side { overflow-y:auto; padding:20px 24px; }
+  .top, .strip { padding-left:28px; padding-right:28px; }
+  .foot { padding-right:28px; }
+
+  .photo { container-type:inline-size; }
+  .tag { padding:1.2cqw 1.5cqw 1.4cqw; }
+  .tag .t { font-size:max(15px, 2.5cqw); }
+  .tag .c { font-size:max(11.5px, 1.6cqw); }
+  .tag .s { gap:0.8cqw; margin-top:1cqw; }
+  .tag .chip { font-size:max(11.5px, 1.5cqw); }
+  .tag .chip em { font-size:max(10px, 1.25cqw); }
+  .tag1 { min-height:15%; }
+
+  .strip-sep { width:1px; background:var(--line); margin:0 6px; flex:none; }
+  .up { width:96px; height:62px; border:1.5px dashed #444b54; border-radius:2px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; color:var(--muted); cursor:pointer; }
+  .up:hover { border-color:var(--hivis); color:var(--hivis); }
+  .up svg { stroke:currentColor; }
+  .up + div { color:var(--muted) !important; }
+
+  .stats { position:relative; width:min(100%, calc((100vh - 280px) * 382 / 344)); margin-top:12px; height:46px; }
+  .stats .s-scan { position:absolute; left:0; top:12px; font-size:12.5px; white-space:nowrap; }
+  .tiles { position:absolute; inset:0; display:flex; align-items:stretch; animation:kShowDone 8s infinite; }
+  .tile { padding:0 22px; border-left:1px solid var(--line); display:flex; flex-direction:column; justify-content:center; }
+  .tile:first-child { padding-left:0; border-left:0; }
+  .tile .k { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:500; }
+  .tile .v { font-size:21px; font-weight:600; line-height:1.15; }
+  .tile .v small { font-size:12px; color:var(--muted); font-weight:400; margin-left:2px; }
+  .tile.file { margin-left:auto; border-left:0; text-align:right; padding-right:0; }
+  .tile.file .v { font-size:13px; color:var(--muted); font-weight:400; }
+</style></head>
+<body>
+<div class="hz">
+  <div class="top">
+    <div class="name">Site Hazard <span>Detection</span></div>
+    <div class="model"><i></i>Model active: <b>yolov8s-world</b></div>
+  </div>
+
+  <div class="strip">
+    <div class="th on"><img src="./site-ppe.jpg" alt=""><div class="n">IMG_0418.jpg</div></div>
+    <div class="th"><img src="./site-stairs.jpg" alt=""><div class="n">IMG_0391.jpg</div></div>
+    <div class="th"><img src="./site-shaft.jpg" alt=""><div class="n">IMG_0402.jpg</div></div>
+    <div class="th"><img src="./site-floor.jpg" alt=""><div class="n">IMG_0377.jpg</div></div>
+    <div class="th"><img src="./site-materials.jpg" alt=""><div class="n">IMG_0433.jpg</div></div>
+    <div class="th"><img src="./site-railing.jpg" alt=""><div class="n">IMG_0365.jpg</div></div>
+    <div class="strip-sep"></div>
+    <div class="th"><label class="up" title="Upload a photo"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12V3M5.5 6.5 9 3l3.5 3.5"/><path d="M3 11.5V14a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2.5"/></svg><input type="file" accept="image/*" hidden></label><div>Upload photo</div></div>
+  </div>
+
+  <div class="main">
+    <div class="stage">
+      <div class="photo">
+        <img src="./site-ppe.jpg" alt="Site photo">
+        <div class="dim"></div>
+        <div class="scan"></div>
+        <div class="bx bx1" style="--sev:var(--red)"></div>
+        <div class="lead ld1" style="--sev:var(--red)"></div>
+        <div class="tag tag1" style="--sev:var(--red)"><div class="t">No PPE detected</div><div class="c n">91% confidence</div>
+          <div class="s"><span class="chip bad">helmet<em>missing</em></span><span class="chip bad">vest<em>missing</em></span></div></div>
+        <div class="bx bx2" style="--sev:var(--amber)"></div>
+        <div class="lead ld2" style="--sev:var(--amber)"></div>
+        <div class="tag tag2" style="--sev:var(--amber)"><div class="t">Trip hazard</div><div class="c n">74% confidence</div></div>
+      </div>
+      <div class="stats">
+        <span class="s-scan n">Scanning for person · hard hat · safety vest · staircase · handrail · rubble…</span>
+        <div class="tiles">
+          <div class="tile"><span class="k">Hazards</span><span class="v n">2</span></div>
+          <div class="tile"><span class="k" style="color:var(--red)">No PPE</span><span class="v n">1</span></div>
+          <div class="tile"><span class="k" style="color:var(--amber)">Trip</span><span class="v n">1</span></div>
+          <div class="tile"><span class="k">Analysed in</span><span class="v n">0.42<small>s</small></span></div>
+          <div class="tile file"><span class="k">Photo</span><span class="v n">IMG_0418.jpg · 4032×3024</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side">
+      <div class="side-hd"><h4>Findings</h4><span class="n">sorted by confidence</span></div>
+      <div class="cards">
+        <div class="wait n">waiting for model…</div>
+        <div class="cd k1" style="--sev:var(--red)">
+          <div class="hd"><span class="num n">01</span><span><span class="ov">No PPE</span><span class="ttl">Human negligence</span></span><span class="conf n">91%<i><b style="width:91%"></b></i></span></div>
+          <div class="row"><span class="lbl">Reason</span>Worker on site without helmet or safety vest.</div>
+          <div class="row"><span class="lbl">YOLO intervention</span>Finds the person, then looks for a hard hat and vest on them.</div>
+          <div class="chk"><span class="chip ok">Person<em>found</em></span><span class="chip bad">Hard hat<em>missing</em></span><span class="chip bad">Safety vest<em>missing</em></span></div>
+        </div>
+        <div class="cd k2" style="--sev:var(--amber)">
+          <div class="hd"><span class="num n">02</span><span><span class="ov">Trip hazard</span><span class="ttl">Loose cables on floor</span></span><span class="conf n">74%<i><b style="width:74%"></b></i></span></div>
+          <div class="row"><span class="lbl">Reason</span>Cables and debris across the walking surface.</div>
+          <div class="row"><span class="lbl">YOLO intervention</span>Detects cables, rubble and debris on the floor.</div>
+          <div class="chk"><span class="chip ok">Cable<em>found</em></span><span class="chip ok">Rubble<em>found</em></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">v0.1</div>
+</div>
+</body></html>
