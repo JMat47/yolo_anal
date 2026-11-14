@@ -37,15 +37,15 @@ def check(fake, fonts_dir, expected=None, cfg=CFG, photos=PHOTOS):
 def test_check_passes_when_flagged_matches(fonts_dir):
     code, out = check(FakeBackend(dets=[CABLE]), fonts_dir, {p.id: ["trip:cable"] for p in PHOTOS})
     assert code == 0, out
-    assert "PASS  site-ppe" in out
+    assert "PASS  noppe-1" in out
     assert f"check: {len(PHOTOS)} passed, 0 failed, 0 without expectation" in out
 
 
 def test_check_fails_and_names_mismatch(fonts_dir):
-    code, out = check(FakeBackend(dets=[CABLE]), fonts_dir, {"site-ppe": ["trip:uneven_floor"]})
+    code, out = check(FakeBackend(dets=[CABLE]), fonts_dir, {"noppe-1": ["trip:uneven_floor"]})
     assert code == 1
-    line = next(ln for ln in out.splitlines() if "site-ppe" in ln and "flagged" in ln)
-    assert line.startswith("FAIL  site-ppe")
+    line = next(ln for ln in out.splitlines() if "noppe-1" in ln and "flagged" in ln)
+    assert line.startswith("FAIL  noppe-1")
     assert "flagged: trip:cable" in line and "expected: trip:uneven_floor" in line
 
 
@@ -76,7 +76,7 @@ def test_check_reports_network_attempt(fonts_dir):
     assert code == 1
     assert any(ln.startswith("FAIL network") and ln.endswith("tried to reach example.com:443")
                for ln in out.splitlines())
-    assert "FAIL  site-ppe" in out
+    assert "FAIL  noppe-1" in out
 
 
 def test_check_marks_check_only_photos(fonts_dir):
@@ -101,8 +101,10 @@ def test_check_from_non_ascii_root(tmp_path):
     cfg = load_config(root / "config" / "hazards.yaml")
     photos = load_photos(root / "demo" / "photos.json")
     assert all(root in p.file.parents for p in photos)
-    code, out = check(FakeBackend(), root / "static" / "fonts", load_expected(root / "demo" / "expected.json"),
-                      cfg=cfg, photos=photos)
+    expected = load_expected(root / "demo" / "expected.json")
+    no_hazard = {photo_id: keys for photo_id, keys in expected.items() if not keys}   # what a detection-free fake can pass
+    assert no_hazard, "expected.json lists the no-hazard photos with []"
+    code, out = check(FakeBackend(), root / "static" / "fonts", no_hazard, cfg=cfg, photos=photos)
     assert code == 0, out
 
 
@@ -178,7 +180,7 @@ def _broken_photos(tmp_path):
 
 def _broken_expected(tmp_path):
     path = tmp_path / "expected.json"
-    path.write_text('{"site-ppe": "no_ppe"}', encoding="utf-8")
+    path.write_text('{"noppe-1": "no_ppe"}', encoding="utf-8")
     return "load_expected", path, "expected.json"
 
 

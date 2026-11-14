@@ -8,11 +8,12 @@ OFL_FILES = ("OFL-atkinson-hyperlegible-next.txt", "OFL-atkinson-hyperlegible-mo
 
 def test_photos_json_matches_files():
     photos = load_photos()
-    assert [p.id for p in photos] == ["site-ppe", "site-stairs", "site-shaft", "site-floor",
-                                      "site-materials", "site-railing"]
+    assert [p.id for p in photos] == ["noppe-1", "opening-open-1", "materials-3", "stair-railed-1", "ppe-ok-1",
+                                      "clean-floor-1", "clean-floor-2"]
     assert all(p.file.is_file() and p.file.parent == DEMO_DIR / "photos" for p in photos)
-    assert photos[0].id == "site-ppe"
-    assert all(p.scene and p.strip for p in photos)
+    assert photos[0].id == "noppe-1"
+    assert all(p.scene for p in photos)
+    assert [p.id for p in photos if not p.strip] == ["clean-floor-1", "clean-floor-2"]
 
 
 def test_fonts_bundled():

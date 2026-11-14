@@ -945,4 +945,14 @@ Behaviour:
 
 | Date | Photo | Change | Before → after | Machine |
 |---|---|---|---|---|
-| | | | | |
+| 2026-11-15 | all 14 in `demo/incoming/web/` | Baseline: YOLO-World v2-S, starting vocabulary, threshold 0.25 | Only `person` found (.91–.95). 3 No PPE photos pass; ppe-ok-1 false No PPE (hard hat .25, safety vest .17); staircase, railing, floor opening, cable, debris, pile of materials 0.00 on their own photos | Mac M5 (MPS) |
+| 2026-11-15 | all | Step 1, thresholds and geometry | Not applicable: the failing roles score below the 0.05 floor, so no threshold or margin can find them. No change | Mac M5 (MPS) |
+| 2026-11-15 | all | Step 2 on YOLO-World v2-S: 4–13 words per role (stairs, stairway, handrail, balustrade, hole, shaft, wire, rubble, sand pile, lumber, helmet, reflective vest, …) | PPE words work (safety helmet .81, reflective vest .95 on ppe-ok-1); every stair, railing, opening, cable, debris and pile word 0.00–0.14. World M and L: same. YOLO-World rejected | Mac M5 (MPS) |
+| 2026-11-15 | all | Step 3: YOLOE-11-S (also tried 11-M, 11-L, 26-S, 26-M, 26-L, and imgsz 1024/1280), same word sweep | YOLOE-11-S best overall: hard hat .70, safety vest .82, pile of materials .42 (materials-3). Larger models and input sizes no better for stairs, cable or debris. Shipped `yoloe-11s-seg` | Mac M5 (MPS) |
+| 2026-11-15 | ppe-ok-1 | Prompt: safety vest → high-visibility vest | Flagged No PPE (3 people) → nothing; noppe-1..3 still No PPE | Mac M5 (MPS) |
+| 2026-11-15 | opening-open-1 | Prompt: floor opening → gap in the floor | .24, missed → .39, Fall hazard (box is the whole photo); clean floors ≤ .21 | Mac M5 (MPS) |
+| 2026-11-15 | trip-1 | cable / debris words on every model | Not detected: cable 0.00; construction debris .32 boxes the ladders; vacuum hose .28 and black hose .56 box the hose (photo-specific words, not shipped). Left out; needs a replacement photo | Mac M5 (MPS) |
+| 2026-11-15 | stair-open-1, stair-open-2 | staircase words on every model | Not detected: best .27 (concrete stairs, YOLOE-26-M) with the same score on non-stair photos. Left out; needs replacement photos | Mac M5 (MPS) |
+| 2026-11-15 | materials-1, -2 | pile of materials | .08 / .06 (lumber .50 and sand pile .61 work, one photo each). materials-3 used instead | Mac M5 (MPS) |
+| 2026-11-15 | all | uneven floor on YOLOE-11-S | Max .08 (≤ .16 under noise): no misfire, kept (R17) | Mac M5 (MPS) |
+| 2026-11-15 | shipped 7 | `uv run hazard-demo check` | 7 passed, 0 failed; model 17–129 ms per photo | Mac M5 (MPS) |

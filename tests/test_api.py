@@ -112,7 +112,7 @@ def test_config_endpoint(make_client):
 def test_photos_listed_with_prepared_image(make_client):
     photos = make_client().get("/api/photos").json()
     first = photos[0]
-    assert (first["id"], first["scene"]) == ("site-ppe", "Column bay")
+    assert (first["id"], first["scene"]) == ("noppe-1", "Tulaghi site")
     assert first["image"]["url"].startswith("/api/images/")
     assert [p["id"] for p in photos] == [p.id for p in load_photos() if p.strip]
 

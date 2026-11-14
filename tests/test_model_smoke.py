@@ -8,7 +8,7 @@ from hazard_demo.paths import DEMO_DIR
 
 pytestmark = pytest.mark.model
 
-PHOTO = DEMO_DIR / "photos" / "site-ppe.jpg"
+PHOTO = DEMO_DIR / "photos" / "noppe-1.jpg"
 
 
 def test_built_model_loads_offline():
