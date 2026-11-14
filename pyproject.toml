@@ -37,3 +37,5 @@ packages = ["src/hazard_demo"]
 testpaths = ["tests"]
 addopts = "-m 'not model and not ui'"
 markers = ["model: needs the committed model file", "ui: Playwright in-browser tests (uv run --group ui)"]
+# Starlette 1.x asks for httpx2 in its TestClient; httpx still works, and swapping it means a re-lock.
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient` is deprecated"]

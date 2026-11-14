@@ -143,9 +143,10 @@ class InferenceQueue:
 class ModelService:
     """Loads the backend in the background (loading → warming → ready | error) and serialises scans."""
 
-    def __init__(self, cfg: Config, backend_factory: Callable[[Config], Backend], warmup_image: Path | None):
+    def __init__(self, cfg: Config, backend_factory: Callable[[Config], Backend], warmup_image: Path | None,
+                 *, boot_id: str | None = None):
         self.cfg = cfg
-        self.boot_id = uuid.uuid4().hex
+        self.boot_id = boot_id or uuid.uuid4().hex   # fixed only by tests that restart a server on the same boot
         self._factory = backend_factory
         self._warmup_image = warmup_image
         self._queue = InferenceQueue()
@@ -158,7 +159,7 @@ class ModelService:
     def start(self) -> None:
         threading.Thread(target=self._load, name="model-loader", daemon=True).start()
 
-    def wait_ready(self, timeout: float) -> bool:
+    def wait_ready(self, timeout: float | None) -> bool:
         self._settled.wait(timeout)
         return self._state == "ready"
 

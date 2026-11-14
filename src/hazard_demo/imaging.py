@@ -31,13 +31,19 @@ _ID = re.compile(r"[0-9a-f]{16}")
 
 class ImageRejected(Exception):
     def __init__(self, kind: Literal["unsupported", "too-large", "too-small", "unreadable"], *,
-                 format: str | None = None, limit: str | None = None, value: str | None = None):
+                 format: str | None = None, limit: str | None = None, value: str | None = None,
+                 measure: Literal["bytes", "pixels"] | None = None):
         self.kind = kind
         self.format = format
         self.limit = limit
         self.value = value
+        self.measure = measure   # too-large only: which limit the file broke, so the page picks its message
         detail = ", ".join(f"{k} {v}" for k, v in (("format", format), ("value", value), ("limit", limit)) if v)
         super().__init__(f"{kind} ({detail})" if detail else kind)
+
+
+def too_many_bytes(size: int) -> ImageRejected:
+    return ImageRejected("too-large", limit="25 MB", value=f"{size / (1024 * 1024):.1f} MB", measure="bytes")
 
 
 def sniff(data: bytes) -> Format | None:
@@ -103,7 +109,7 @@ class ImageStore:
 def _prepare(data: bytes) -> tuple[bytes, tuple[int, int], tuple[int, int]]:
     """Returns (JPEG bytes, prepared size, size after EXIF rotation) or raises ImageRejected."""
     if len(data) > MAX_BYTES:
-        raise ImageRejected("too-large", limit="25 MB", value=f"{len(data) / (1024 * 1024):.1f} MB")
+        raise too_many_bytes(len(data))
     fmt = sniff(data)
     if fmt is None or fmt == "heic":
         raise ImageRejected("unsupported", format=fmt)
@@ -112,13 +118,13 @@ def _prepare(data: bytes) -> tuple[bytes, tuple[int, int], tuple[int, int]]:
             warnings.simplefilter("ignore", Image.DecompressionBombWarning)   # our own pixel limit applies below
             img = Image.open(io.BytesIO(data), formats=[_PIL_FORMATS[fmt]])
     except Image.DecompressionBombError:
-        raise ImageRejected("too-large", limit="50 MP") from None
+        raise ImageRejected("too-large", limit="50 MP", measure="pixels") from None
     except (OSError, SyntaxError, ValueError):
         raise ImageRejected("unreadable") from None
     with img:
         w, h = img.size
         if w * h > MAX_PIXELS:
-            raise ImageRejected("too-large", limit="50 MP", value=f"{w * h / 1_000_000:.1f} MP")
+            raise ImageRejected("too-large", limit="50 MP", value=f"{w * h / 1_000_000:.1f} MP", measure="pixels")
         if min(w, h) < MIN_SIDE:
             raise ImageRejected("too-small", limit=f"{MIN_SIDE} px", value=f"{min(w, h)} px")
         try:
