@@ -67,8 +67,8 @@ The strip holds 4 demo photos, in this order: Tulaghi site (`noppe-1`), Timber f
 (`materials-3`) and Slab edge (`ppe-ok-1`, which flags nothing). The other photos in `demo/photos/` are check-only
 controls that `check` runs but the strip never shows.
 
-Picking a photo again shows its earlier result at once, with the stats row reading "Model time, earlier run". R, or a
-click on the photo already on stage, scans it afresh. The Upload photo tile takes JPG, PNG or WebP; HEIC is rejected
+Picking a photo again shows its earlier result at once, including one that flagged nothing, with the stats row
+reading "Model time, earlier run". R, or a click on the photo already on stage, scans it afresh. The Upload photo tile takes JPG, PNG or WebP; HEIC is rejected
 (save the photo as JPG first), and an upload is always scanned afresh.
 
 ### Keys

@@ -114,8 +114,9 @@ function onPick(s, e) {
   const photo = { photoKey: e.key, image: e.image, name: e.name, pending: null, cached: false, error: null };
   if (!s.modelReady) return go(s, { ...photo, app: "waiting", pending: e.key }, ...stop, showPhoto(e));
   if (e.key === s.photoKey) return scanAgain(s);   // the photo on stage, clicked again: a fresh scan (UI-31)
-  if (e.cachedResult) {
-    return go(s, { ...photo, app: "result", cached: true }, ...stop, CLEAR, showPhoto(e),
+  if (e.cachedResult) {   // a revisit replays the earlier result, or the earlier empty one (UI-31)
+    const app = e.cachedResult.findings.length > 0 ? "result" : "empty";
+    return go(s, { ...photo, app, cached: true }, ...stop, CLEAR, showPhoto(e),
       { type: "showCached", payload: e.cachedResult });
   }
   const seq = s.seq + 1;

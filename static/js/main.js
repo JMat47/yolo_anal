@@ -134,8 +134,14 @@ function stopWork({ keepScene = false } = {}) {
   scene = null;
 }
 
+// The revisit cache keeps a demo photo's last result, with or without hazards; uploads always scan afresh, and
+// errors never get here (UI-31).
+function remember(payload) {
+  if (!strip.isUpload(state.photoKey)) results.set(state.photoKey, payload);
+}
+
 async function reveal(payload) {
-  if (!strip.isUpload(state.photoKey)) results.set(state.photoKey, payload);   // uploads always scan afresh
+  remember(payload);
   const token = sceneToken;
   await endScene();
   if (token !== sceneToken) return;   // a newer pick cleared the stage while the scene was ending
@@ -150,7 +156,7 @@ async function reveal(payload) {
 // No hazards (UI-34): the photo stays at full brightness, the stats row keeps "Hazards flagged" 0, Model time
 // and Photo, and the panel lists what was checked.
 async function showEmpty(payload) {
-  results.delete(state.photoKey);   // only results with hazards are kept: an empty one scans again on a revisit
+  remember(payload);
   const token = sceneToken;
   await endScene();
   if (token !== sceneToken) return;
@@ -161,14 +167,19 @@ async function showEmpty(payload) {
 }
 
 // A revisit (UI-31): no scene. The photo decodes first, so no box is ever drawn over the photo before it; then the
-// boxes, tags, cards and stats fade in together, and the stats row marks the model time as an earlier run.
+// boxes, tags and cards (or the empty panel, with the toggle still hidden) and the stats fade in together, and the
+// stats row marks the model time as an earlier run.
 async function showCached(payload) {
   const token = sceneToken;
   const shown = await photoShown.then(() => true, () => false);
   if (!shown || token !== sceneToken) return;
-  resetToggle(true);
-  stage.drawOverlays(payload.findings, { animate: false });
-  cards.renderCards(payload.findings, payload.hidden_count, { animate: false });
+  if (payload.findings.length > 0) {
+    resetToggle(true);
+    stage.drawOverlays(payload.findings, { animate: false });
+    cards.renderCards(payload.findings, payload.hidden_count, { animate: false });
+  } else {
+    cards.renderEmpty(payload, { animate: false });
+  }
   stats.renderStats({ findings: payload.findings, modelMs: payload.model_ms, photoName: state.name, cached: true });
   const duration = reducedMotion() ? stage.REVEAL.still : CACHED_FADE_MS;
   for (const layer of document.querySelectorAll(".overlay, .tags, #stats, #findings-list")) {

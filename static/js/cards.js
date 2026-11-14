@@ -32,7 +32,7 @@ export function renderCards(findings, hiddenCount, { animate }) {
 
 // No rule fired (UI-34, PM-7, R22): the heading says so, then what the model did find, then every check that
 // ran, then the sign-off line. Neutral colours only: nothing here reads as "safe".
-export function renderEmpty(payload) {
+export function renderEmpty(payload, { animate = true } = {}) {
   heading.textContent = S.panelHeadingEmpty;
   const objects = paragraph("empty-objects", "");
   if (payload.objects_found.length > 0) {
@@ -59,6 +59,7 @@ export function renderEmpty(payload) {
   const nodes = [objects, checks, paragraph("empty-signoff", S.signOff)];
   list.replaceChildren(...nodes);
   list.scrollTop = 0;
+  if (!animate) return;
   const [frames, duration] = reducedMotion() ? [FADE, REVEAL.still] : [RISE, REVEAL.card];
   nodes.forEach((node) => node.animate(frames, { duration, easing: EASE_OUT, fill: "backwards" }));
 }
