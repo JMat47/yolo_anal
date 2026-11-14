@@ -69,6 +69,14 @@ def _missing_hazard(d):
     d["hazards"].pop("materials")
 
 
+def _margin_not_a_number(d):
+    d["geometry"]["railing_margin"] = "wide"
+
+
+def _port_not_an_integer(d):
+    d["server"]["port"] = "eighty"
+
+
 @pytest.mark.parametrize(
     ("edit", "key"),
     [
@@ -79,9 +87,11 @@ def _missing_hazard(d):
         (_threshold_out_of_range, "railing"),
         (_grades_inverted, "confidence_grades"),
         (_missing_hazard, "materials"),
+        (_margin_not_a_number, "geometry.railing_margin"),
+        (_port_not_an_integer, "server.port"),
     ],
     ids=["unknown-role", "duplicate-word", "missing-person", "no-trip-role",
-         "threshold-range", "grades-inverted", "missing-hazard"],
+         "threshold-range", "grades-inverted", "missing-hazard", "margin-not-a-number", "port-not-an-integer"],
 )
 def test_rejects_bad_config(tmp_path, edit, key):
     with pytest.raises(ConfigError, match=key):

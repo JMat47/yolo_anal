@@ -32,14 +32,14 @@ def flagged_keys(ev: Evaluation) -> list[str]:
 class _Report:
     def __init__(self, out: TextIO):
         self.out = out
-        self.failed = False
+        self.fails = 0   # every FAIL line, so the summary can't read clean while the exit code is 1
 
     def item(self, status: str, label: str, detail: str) -> None:
-        self.failed |= status == "FAIL"
+        self.fails += status == "FAIL"
         self.line(f"{status:<5}{label:<13}{detail}")
 
     def photo(self, status: str, photo: DemoPhoto, detail: str) -> None:
-        self.failed |= status == "FAIL"
+        self.fails += status == "FAIL"
         tag = "  (check only)" if not photo.strip else ""
         self.line(f"{status:<6}{photo.id:<16}{photo.scene:<20}{detail}{tag}")
 
@@ -63,8 +63,8 @@ def run_check(cfg: Config, *, backend_factory: Callable[[Config], Backend], phot
             counts[_run_photo(photo, prepared.get(photo.id), backend, expected, cfg, report)] += 1
     for target in dict.fromkeys(attempts):
         report.item("FAIL", "network", f"tried to reach {target}")
-    report.line(f"check: {counts['PASS']} passed, {counts['FAIL']} failed, {counts['TODO']} without expectation")
-    return 1 if report.failed else 0
+    report.line(f"check: {counts['PASS']} passed, {report.fails} failed, {counts['TODO']} without expectation")
+    return 1 if report.fails else 0
 
 
 def run_setup(cfg: Config, *, out: TextIO) -> int:
@@ -77,7 +77,9 @@ def run_setup(cfg: Config, *, out: TextIO) -> int:
         _check_cuda(torch, report)
     code = run_check(cfg, backend_factory=UltralyticsBackend, photos=load_photos(), expected=load_expected(),
                      fonts_dir=FONTS_DIR, out=out)
-    return 1 if report.failed or code else 0
+    if report.fails:
+        report.line(f"setup: {report.fails} failed before check (see the FAIL lines above)")
+    return 1 if report.fails or code else 0
 
 
 def _check_dependencies(report: _Report) -> None:

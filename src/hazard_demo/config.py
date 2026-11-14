@@ -145,6 +145,16 @@ class _Loader:
             raise self.fail(f"missing key '{where}{key}'")
         return data[key]
 
+    def integer(self, value: Any, key: str) -> int:
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise self.fail(f"'{key}' must be a whole number above 0, got {value!r}")
+        return value
+
+    def number(self, value: Any, key: str) -> float:
+        if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
+            raise self.fail(f"'{key}' must be a number of 0 or more, got {value!r}")
+        return float(value)
+
     def fraction(self, value: Any, key: str) -> float:
         if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value < 1:
             raise self.fail(f"'{key}' must be a number between 0 and 1 (exclusive), got {value!r}")
@@ -158,27 +168,27 @@ class _Loader:
         if not isinstance(torso, list) or len(torso) != 2:
             raise self.fail("'geometry.torso_region' must be a list of two fractions")
         return Config(
-            port=int(self.get(self.get(data, "server"), "port", "server.")),
+            port=self.integer(self.get(self.get(data, "server"), "port", "server."), "server.port"),
             model_file=REPO_ROOT / str(self.get(model, "file", "model.")),
             model_base=str(self.get(model, "base", "model.")),
             conf_floor=self.fraction(self.get(model, "conf_floor", "model."), "model.conf_floor"),
-            imgsz=int(self.get(model, "imgsz", "model.")),
+            imgsz=self.integer(self.get(model, "imgsz", "model."), "model.imgsz"),
             device=str(self.get(model, "device", "model.")),
-            min_scene_ms=int(self.get(self.get(data, "scan"), "min_scene_ms", "scan.")),
-            timeout_ms=int(self.get(self.get(data, "scan"), "timeout_ms", "scan.")),
+            min_scene_ms=self.integer(self.get(self.get(data, "scan"), "min_scene_ms", "scan."), "scan.min_scene_ms"),
+            timeout_ms=self.integer(self.get(self.get(data, "scan"), "timeout_ms", "scan."), "scan.timeout_ms"),
             prompts=prompts,
             threshold=self.fraction(self.get(data, "threshold"), "threshold"),
             thresholds=self.thresholds(self.get(data, "thresholds") or {}, prompts),
             merge_iou=self.fraction(self.get(data, "merge_iou"), "merge_iou"),
-            railing_margin=float(self.get(geometry, "railing_margin", "geometry.")),
+            railing_margin=self.number(self.get(geometry, "railing_margin", "geometry."), "geometry.railing_margin"),
             head_region=self.fraction(self.get(geometry, "head_region", "geometry."), "geometry.head_region"),
             torso_region=(
                 self.fraction(torso[0], "geometry.torso_region"),
                 self.fraction(torso[1], "geometry.torso_region"),
             ),
-            ppe_margin=float(self.get(geometry, "ppe_margin", "geometry.")),
+            ppe_margin=self.number(self.get(geometry, "ppe_margin", "geometry."), "geometry.ppe_margin"),
             confidence_grades=self.grades(self.get(data, "confidence_grades")),
-            max_findings=int(self.get(data, "max_findings")),
+            max_findings=self.integer(self.get(data, "max_findings"), "max_findings"),
             hazards=self.hazards(self.get(data, "hazards"), prompts),
         )
 

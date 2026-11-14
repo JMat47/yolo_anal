@@ -4,11 +4,13 @@ import socket
 import sys
 
 import pytest
+import yaml
 from conftest import FakeBackend
 
 from hazard_demo import checks, cli
 from hazard_demo.checks import flagged_keys, run_check, run_setup
 from hazard_demo.config import DemoPhoto, load_config, load_expected, load_photos
+from hazard_demo.paths import CONFIG_PATH
 from hazard_demo.paths import FONT_FILES, FONTS_DIR, REPO_ROOT
 from hazard_demo.rules import Detection, evaluate
 
@@ -26,6 +28,9 @@ def check(fake, fonts_dir, expected=None, cfg=CFG, photos=PHOTOS):
     out = io.StringIO()
     code = run_check(cfg, backend_factory=lambda c: fake, photos=photos, expected=expected or {},
                      fonts_dir=fonts_dir, out=out)
+    summary = out.getvalue().splitlines()[-1]
+    assert summary.startswith("check: ")
+    assert (" 0 failed" in summary) == (code == 0), "the last line must never read clean when check fails"
     return code, out.getvalue()
 
 
@@ -59,6 +64,7 @@ def test_check_fails_on_missing_font(fonts_dir):
     assert code == 1
     line = next(ln for ln in out.splitlines() if ln.startswith("FAIL fonts"))
     assert FONT_FILES[2] in line
+    assert out.splitlines()[-1] == f"check: 0 passed, 1 failed, {len(PHOTOS)} without expectation"
 
 
 def test_check_reports_network_attempt(fonts_dir):
@@ -146,6 +152,7 @@ def test_setup_without_cuda_prints_fixes(on_windows):
     assert "Install or update the NVIDIA driver (Game Ready or Studio, 2024 or newer)" in text
     assert "uv sync --reinstall-package torch --reinstall-package torchvision" in text
     assert 'uv run python -c "import torch; print(torch.version.cuda, torch.cuda.is_available())"' in text
+    assert text.splitlines()[-1].startswith("setup: 1 failed")
 
 
 def test_setup_without_sm75_says_switch_to_cu126(on_windows):
@@ -153,3 +160,38 @@ def test_setup_without_sm75_says_switch_to_cu126(on_windows):
     out = io.StringIO()
     assert run_setup(CFG, out=out) == 1
     assert "switch the PyTorch index to cu126 in pyproject.toml and run `uv lock`" in out.getvalue()
+
+
+def _broken_config(tmp_path):
+    data = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
+    del data["server"]["port"]
+    path = tmp_path / "hazards.yaml"
+    path.write_text(yaml.safe_dump(data), encoding="utf-8")
+    return "load_config", path, "server.port"
+
+
+def _broken_photos(tmp_path):
+    path = tmp_path / "photos.json"
+    path.write_text('[{"id": "a", "file": "a.jpg"}]', encoding="utf-8")
+    return "load_photos", path, "scene"
+
+
+def _broken_expected(tmp_path):
+    path = tmp_path / "expected.json"
+    path.write_text('{"site-ppe": "no_ppe"}', encoding="utf-8")
+    return "load_expected", path, "expected.json"
+
+
+@pytest.mark.parametrize("broken", [_broken_config, _broken_photos, _broken_expected],
+                         ids=["config", "photos", "expected"])
+def test_cli_reports_config_error_without_traceback(monkeypatch, capsys, tmp_path, broken):
+    monkeypatch.setenv("YOLO_OFFLINE", "true")       # main() sets these; monkeypatch restores them afterwards
+    monkeypatch.setenv("YOLO_AUTOINSTALL", "false")
+    loader, path, key = broken(tmp_path)
+    real = getattr(cli, loader)
+    monkeypatch.setattr(cli, loader, lambda: real(path))
+    monkeypatch.setattr(cli, "run_check", lambda cfg, **kwargs: 0)
+    assert cli.main(["check"]) == 1
+    err = capsys.readouterr().err.strip()
+    assert err.startswith("FAIL config")
+    assert key in err and "Traceback" not in err

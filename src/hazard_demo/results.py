@@ -12,7 +12,8 @@ if TYPE_CHECKING:
 
 
 def pct(score: float) -> int:
-    return min(99, max(1, math.floor(score * 100)))
+    # round() first so float error can't drop a whole percent: .29 * 100 is 28.999999999999996
+    return min(99, max(1, math.floor(round(score * 100, 6))))
 
 
 def grade(p: int, grades: Mapping[str, int]) -> Literal["high", "medium", "low"]:

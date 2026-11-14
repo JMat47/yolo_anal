@@ -28,6 +28,8 @@ def test_pct_floors_and_clamps():
     assert pct(1.0) == 99
     assert pct(.004) == 1
     assert pct(.25) == 25
+    assert pct(.29) == 29      # .29 * 100 == 28.999999999999996
+    assert pct(.57) == 57      # .57 * 100 == 56.99999999999999
 
 
 def test_grade_cutoffs():

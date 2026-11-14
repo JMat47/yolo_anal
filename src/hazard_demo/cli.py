@@ -4,7 +4,7 @@ import argparse
 import sys
 
 from hazard_demo.checks import run_check, run_setup
-from hazard_demo.config import load_config, load_expected, load_photos
+from hazard_demo.config import ConfigError, load_config, load_expected, load_photos
 from hazard_demo.detector import UltralyticsBackend
 from hazard_demo.offline import configure_ultralytics
 from hazard_demo.paths import FONTS_DIR, display_path
@@ -27,6 +27,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command is None:
         parser.print_usage(sys.stderr)
         return 2
+    try:
+        return _run(args)
+    except ConfigError as exc:   # a typo in a config file gets one clear line, not a traceback
+        print(f"{'FAIL':<5}{'config':<13}{exc}", file=sys.stderr)
+        return 1
+
+
+def _run(args: argparse.Namespace) -> int:
     if args.command == "build-model":
         from hazard_demo.build_model import build_model
         from hazard_demo.detector import sha256_file
