@@ -451,6 +451,7 @@ button { font: inherit; color: inherit; }
   margin: var(--space-3) 0 0;
   font-size: var(--fs-label);
   line-height: 1.45;
+  text-wrap: pretty;
   overflow-wrap: anywhere;
   color: var(--ink-2);
 }
@@ -525,7 +526,7 @@ button { font: inherit; color: inherit; }
   align-items: center;
   column-gap: var(--space-1);
   max-width: clamp(140px, 42cqw, 320px);
-  padding-right: var(--space-2);
+  padding: 0 var(--space-2) 0 var(--space-1);   /* the number cell keeps clear of the edge at every frame size */
   border-radius: 2px;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.35);
 }
@@ -534,6 +535,7 @@ button { font: inherit; color: inherit; }
 .tag.is-highlighted { z-index: 1; }
 .tag[data-form="badge"] { padding: 0; }
 .tag[data-form="short"] { white-space: nowrap; }
+.tag-num, .tag-cat { align-self: baseline; }   /* "01" and "No PPE" share one baseline */
 .tag-num {
   display: grid;
   place-items: center;
@@ -586,11 +588,11 @@ button { font: inherit; color: inherit; }
 .scan-elapsed { flex: none; white-space: pre; }
 
 /* Error bar (UI-35, UI-40): in the stats slot, top-aligned so a wrapped message runs into the stage's bottom
-   padding instead of moving the photo. */
+   padding instead of moving the photo. The dot, the message's first line and "Scan again" share one baseline. */
 .stats:has(> .error-bar) { overflow: visible; }
 .error-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   gap: var(--gap-group);
   width: 100%;
   min-width: 0;
@@ -613,6 +615,7 @@ button { font: inherit; color: inherit; }
   margin: 0;
   font-size: var(--fs-chip);
   line-height: 1.25;
+  text-wrap: pretty;
   overflow-wrap: anywhere;
   color: var(--ink-1);
 }
@@ -682,12 +685,16 @@ button { font: inherit; color: inherit; }
   padding-right: 0;
   border-left: 0;
 }
+/* At the tile's foot, with a line height that puts the name on the numbers' baseline (measured within 0.2px from
+   1093 to 1920). */
 .stat-photo .stat-value {
   display: flex;
   max-width: 100%;
+  margin-top: auto;
   font-family: var(--font-next);
   font-size: var(--fs-body);
   font-weight: 400;
+  line-height: 1.3;
   color: var(--ink-2);
 }
 .photo-head { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -727,11 +734,16 @@ button { font: inherit; color: inherit; }
   color: var(--ink-2);
   cursor: pointer;
 }
-.text-button:hover { color: var(--ink-1); }
+.text-button:hover {
+  color: var(--ink-1);
+  text-decoration: underline 1px;
+  text-underline-offset: 0.2em;
+}
 .legend {
   margin: var(--space-1) 0 0;
   font-size: var(--fs-label);
   line-height: 1.25;
+  text-wrap: pretty;
   color: var(--ink-2);
 }
 .findings {
@@ -757,6 +769,7 @@ button { font: inherit; color: inherit; }
   transition: box-shadow 120ms ease-out;
 }
 .card.sev-med { --sev-ink: var(--sev-med); --sev-tint: var(--sev-med-tint); }
+.card:focus-visible { outline-offset: -2px; }   /* drawn over the outline: the list's top edge would clip it */
 .card.is-linked { box-shadow: inset 3px 0 0 var(--sev-ink); }
 .card-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--gap-group); }
 .card-cat {
@@ -819,6 +832,7 @@ button { font: inherit; color: inherit; }
   margin: 0;
   font-size: var(--fs-label);
   line-height: 1.25;
+  text-wrap: pretty;
   color: var(--ink-2);
 }
 
@@ -840,10 +854,10 @@ button { font: inherit; color: inherit; }
   line-height: 1.25;
   color: var(--ink-2);
 }
-.check-list li { padding: var(--space-2) 0; border-top: 1px solid var(--rule); }
+.check-list li { padding: var(--space-2) 0; border-top: 1px solid var(--rule); text-wrap: pretty; }
 .check-list li:last-child { border-bottom: 1px solid var(--rule); }
 .check-label { color: var(--ink-1); }
-.empty-signoff { margin: 0; font-size: var(--fs-label); line-height: 1.25; color: var(--ink-2); }
+.empty-signoff { margin: 0; font-size: var(--fs-label); line-height: 1.25; text-wrap: pretty; color: var(--ink-2); }
 
 .panel-msg {
   max-width: 34em;
@@ -877,6 +891,7 @@ button { font: inherit; color: inherit; }
   margin: 0;
   font-size: var(--fs-label);
   line-height: 1.25;
+  text-wrap: pretty;
   color: var(--ink-2);
 }
 .version {

@@ -253,10 +253,14 @@ function pick(photo) {
   dispatch({ type: "pick", ...photo, cachedResult: results.get(photo.key) });
 }
 
-// The arrow keys and the clicker's forward and back buttons step through the demo photos (UI-94).
+// The arrow keys and the clicker's forward and back buttons step through the demo photos (UI-94). Keyboard focus
+// in the strip goes with them, so the focus ring never stays on a photo that has left the stage.
 function stepPhoto(step) {
   const key = strip.neighbour(state.photoKey, step);
-  if (key) pick(strip.photoFor(key));
+  if (!key) return;
+  const focusInStrip = document.activeElement?.closest(".strip") != null;
+  pick(strip.photoFor(key));
+  if (focusInStrip) strip.focusThumb(key);
 }
 
 // The overlay toggle (UI-21, PM-9) shows once a result's boxes are drawn: the reducer enters result when the
@@ -414,6 +418,12 @@ async function pollHealth() {
 
 function wireInputs() {
   strip.onPick(pick);
+  // A thumbnail or the Upload tile clicked with the pointer lets go of focus; otherwise the presenter's next
+  // clicker press would ring it (UI-97) next to the photo now on stage. A keyboard click has no pointer type and
+  // keeps focus.
+  document.querySelector(".strip").addEventListener("click", (event) => {
+    if (event.pointerType) event.target.closest("button")?.blur();
+  });
   bindKeys({
     next: () => stepPhoto(1),
     prev: () => stepPhoto(-1),

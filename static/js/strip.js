@@ -55,6 +55,13 @@ export function dropUploadSlot() {
   uploadSlot = null;
 }
 
+// Keyboard focus to a photo's thumbnail. renderThumbs has already scrolled it into view, so focus doesn't scroll.
+export function focusThumb(key) {
+  for (const thumb of strip.querySelectorAll("button.thumb")) {
+    if (thumb.dataset.photo === key) thumb.focus({ preventScroll: true });
+  }
+}
+
 // {key, image, name} for a thumbnail's photo key, or null.
 export function photoFor(key) {
   const photo = demoPhotos.get(key);
