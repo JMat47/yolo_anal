@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8", errors="replace")
+    _enable_console_colours()
 
     parser = argparse.ArgumentParser(prog="hazard-demo", description="Site hazard detection demo.")
     parser.set_defaults(no_browser=False)
@@ -111,6 +112,30 @@ def _port_is_free(port: int) -> bool:
         except OSError:
             return False
     return True
+
+
+def _enable_console_colours() -> None:
+    """The red error lines are ANSI escapes. A legacy Windows console prints them as text ("←[31m") unless
+    virtual-terminal processing is on, so switch it on for stdout and stderr. Redirected output has no console
+    mode to change; any failure leaves the console as it was."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.GetStdHandle.restype = wintypes.HANDLE
+        kernel32.GetStdHandle.argtypes = [wintypes.DWORD]
+        kernel32.GetConsoleMode.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
+        kernel32.SetConsoleMode.argtypes = [wintypes.HANDLE, wintypes.DWORD]
+        for std_handle in (-11, -12):   # STD_OUTPUT_HANDLE, STD_ERROR_HANDLE
+            handle = kernel32.GetStdHandle(wintypes.DWORD(std_handle).value)
+            mode = wintypes.DWORD()
+            if handle and kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+                kernel32.SetConsoleMode(handle, mode.value | 0x0004)   # ENABLE_VIRTUAL_TERMINAL_PROCESSING
+    except (AttributeError, OSError, ValueError):
+        pass
 
 
 def _log_to_console() -> None:

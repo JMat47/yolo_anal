@@ -257,7 +257,8 @@ function fillTag(tag, finding, form) {
 // Runs on draw and, once per frame, on every resize of the frame (no transitions).
 function layout() {
   if (!drawn) return;
-  const size = { w: frame.clientWidth, h: frame.clientHeight };
+  const bounds = frame.getBoundingClientRect();   // fractional, like the SVG it draws into (UI-13's 1px budget)
+  const size = { w: bounds.width, h: bounds.height };
   const rects = boxRects(drawn.findings, size);
   for (const finding of drawn.findings) setBoxRect(drawn.nodes.get(finding.id).box, rects.get(finding.id));
   stackBoxes();
@@ -330,7 +331,10 @@ function measureTag(finding) {
     return [form, tag];
   });
   tagLayer.append(probe);
-  const sizes = Object.fromEntries(forms.map(([form, tag]) => [form, { w: tag.offsetWidth, h: tag.offsetHeight }]));
+  const sizes = Object.fromEntries(forms.map(([form, tag]) => {
+    const { width, height } = tag.getBoundingClientRect();   // unrounded, so the 8px tag gap is exact
+    return [form, { w: width, h: height }];
+  }));
   probe.remove();
   return sizes;
 }

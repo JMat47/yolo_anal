@@ -161,7 +161,7 @@ button { font: inherit; color: inherit; }
   color: var(--ink-2);
 }
 #model-label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-#model-label .checkpoint { font-family: var(--font-mono); color: var(--ink-1); }
+#model-label .checkpoint { color: var(--ink-1); }   /* a file name: Next, not Mono (PM-4c) */
 .dot {
   flex: none;
   width: 7px;

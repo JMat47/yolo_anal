@@ -49,14 +49,16 @@ class ScanRequest(BaseModel):
 def create_app(cfg: Config, *, backend_factory: Callable[[Config], Backend] = UltralyticsBackend,
                store: ImageStore | None = None, photos: Sequence[DemoPhoto] | None = None,
                boot_id: str | None = None) -> FastAPI:
-    store = store or ImageStore(default_store_root())
     strip = [photo for photo in (load_photos() if photos is None else photos) if photo.strip]
     listed: list[dict] = []
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        listed[:] = [_prepare_demo_photo(photo, store) for photo in strip]
-        warmup = next((store.get(item["image"]["id"]) for item in listed if "image" in item), None)
+        # The default store clears its temp folder, so it is made only when this app really starts: building an
+        # app (as the CLI tests do) must never wipe the images of a demo that is running.
+        app.state.store = images = store or ImageStore(default_store_root())
+        listed[:] = [_prepare_demo_photo(photo, images) for photo in strip]
+        warmup = next((images.get(item["image"]["id"]) for item in listed if "image" in item), None)
         service = ModelService(cfg, backend_factory, warmup.path if warmup else None, boot_id=boot_id)
         app.state.service = service
         service.start()
@@ -92,14 +94,14 @@ def create_app(cfg: Config, *, backend_factory: Callable[[Config], Backend] = Ul
         if len(data) > MAX_BYTES:
             return rejection_response(too_many_bytes(file.size or len(data)))
         try:
-            image = await run_in_threadpool(store.put, data, file.filename or "photo")
+            image = await run_in_threadpool(app.state.store.put, data, file.filename or "photo")
         except ImageRejected as exc:
             return rejection_response(exc)
         return image.to_json()
 
     @app.post("/api/scan")
     async def scan(request: ScanRequest):
-        image = store.get(request.image_id)
+        image = app.state.store.get(request.image_id)
         if image is None:
             return error_response(404, "unreadable")
         service: ModelService = app.state.service
@@ -118,7 +120,7 @@ def create_app(cfg: Config, *, backend_factory: Callable[[Config], Backend] = Ul
 
     @app.get("/api/images/{image_id}.jpg")
     def prepared_image(image_id: str):
-        image = store.get(image_id)
+        image = app.state.store.get(image_id)
         if image is None:
             return error_response(404, "unreadable")
         return FileResponse(image.path, media_type="image/jpeg")
