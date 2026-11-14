@@ -75,7 +75,7 @@ class ImageStore:
     def __init__(self, root: Path):
         self.root = root
         shutil.rmtree(root, ignore_errors=True)
-        root.mkdir(parents=True)
+        root.mkdir(parents=True, exist_ok=True)   # a file another process holds open may survive the clear
         self._images: dict[str, PreparedImage] = {}
         self._lock = threading.Lock()
 

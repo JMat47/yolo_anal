@@ -8,7 +8,7 @@ from conftest import FakeBackend
 
 from hazard_demo import checks, cli
 from hazard_demo.checks import flagged_keys, run_check, run_setup
-from hazard_demo.config import load_config, load_expected, load_photos
+from hazard_demo.config import DemoPhoto, load_config, load_expected, load_photos
 from hazard_demo.paths import FONT_FILES, FONTS_DIR, REPO_ROOT
 from hazard_demo.rules import Detection, evaluate
 
@@ -74,7 +74,7 @@ def test_check_reports_network_attempt(fonts_dir):
 
 
 def test_check_marks_check_only_photos(fonts_dir):
-    photos = [PHOTOS[0], type(PHOTOS[0])("control", PHOTOS[1].file, "Control", strip=False)]
+    photos = [PHOTOS[0], DemoPhoto("control", PHOTOS[1].file, "Control", strip=False)]
     code, out = check(FakeBackend(), fonts_dir, photos=photos)
     control = next(ln for ln in out.splitlines() if ln.startswith("TODO  control"))
     assert control.endswith("(check only)")
