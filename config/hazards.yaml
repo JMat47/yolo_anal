@@ -15,6 +15,7 @@ prompts:            # role: prompt word (shown on screen). Order = vocabulary or
 threshold: 0.25
 thresholds: {}      # per-role overrides, e.g. {floor_opening: 0.2}
 merge_iou: 0.6
+merge_contain: 0.8   # drop a box when this share of the smaller box lies inside a kept one
 geometry: {railing_margin: 0.15, head_region: 0.30, torso_region: [0.20, 0.70], ppe_margin: 0.10}
 confidence_grades: {high: 60, medium: 40}
 max_findings: 3

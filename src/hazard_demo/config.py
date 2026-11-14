@@ -52,6 +52,7 @@ class Config:
     threshold: float
     thresholds: dict[str, float]
     merge_iou: float
+    merge_contain: float
     railing_margin: float
     head_region: float
     torso_region: tuple[float, float]
@@ -160,6 +161,11 @@ class _Loader:
             raise self.fail(f"'{key}' must be a number between 0 and 1 (exclusive), got {value!r}")
         return float(value)
 
+    def share(self, value: Any, key: str) -> float:
+        if isinstance(value, bool) or not isinstance(value, int | float) or not 0 < value <= 1:
+            raise self.fail(f"'{key}' must be a number above 0 and at most 1, got {value!r}")
+        return float(value)
+
     def build(self, data: Any) -> Config:
         model = self.get(data, "model")
         geometry = self.get(data, "geometry")
@@ -180,6 +186,7 @@ class _Loader:
             threshold=self.fraction(self.get(data, "threshold"), "threshold"),
             thresholds=self.thresholds(self.get(data, "thresholds") or {}, prompts),
             merge_iou=self.fraction(self.get(data, "merge_iou"), "merge_iou"),
+            merge_contain=self.share(self.get(data, "merge_contain"), "merge_contain"),
             railing_margin=self.number(self.get(geometry, "railing_margin", "geometry."), "geometry.railing_margin"),
             head_region=self.fraction(self.get(geometry, "head_region", "geometry."), "geometry.head_region"),
             torso_region=(

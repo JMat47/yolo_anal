@@ -65,11 +65,22 @@ def iou(a: Box, b: Box) -> float:
     return inter / union if union > 0 else 0.0
 
 
-def merge_same_role(dets: Sequence[Detection], iou_min: float) -> list[Detection]:
-    """Greedy NMS within each role: keep the highest score, drop same-role boxes overlapping it."""
+def contained(a: Box, b: Box) -> float:
+    """Share of the smaller box's area that lies inside the other box."""
+    iw = min(a[2], b[2]) - max(a[0], b[0])
+    ih = min(a[3], b[3]) - max(a[1], b[1])
+    if iw <= 0 or ih <= 0:
+        return 0.0
+    smaller = min((a[2] - a[0]) * (a[3] - a[1]), (b[2] - b[0]) * (b[3] - b[1]))
+    return iw * ih / smaller if smaller > 0 else 0.0
+
+
+def merge_same_role(dets: Sequence[Detection], iou_min: float, contain_min: float) -> list[Detection]:
+    """Greedy NMS within each role: keep the highest score, drop same-role boxes overlapping it or sitting inside it."""
     kept: list[Detection] = []
     for det in sorted(dets, key=lambda x: x.score, reverse=True):
-        if all(k.role != det.role or iou(k.box, det.box) < iou_min for k in kept):
+        if all(k.role != det.role or (iou(k.box, det.box) < iou_min and contained(k.box, det.box) < contain_min)
+               for k in kept):
             kept.append(det)
     return kept
 
@@ -78,7 +89,7 @@ def evaluate(dets: Sequence[Detection], cfg: Config) -> Evaluation:
     dets = [det for det in dets if det.role in cfg.prompts]
     best = {role: max((det.score for det in dets if det.role == role), default=0.0) for role in cfg.prompts}
     found = {role: [] for role in cfg.prompts}
-    for det in merge_same_role([det for det in dets if det.score > cfg.threshold_for(det.role)], cfg.merge_iou):
+    for det in merge_same_role([det for det in dets if det.score > cfg.threshold_for(det.role)], cfg.merge_iou, cfg.merge_contain):
         found[det.role].append(det)
 
     per_hazard = {
