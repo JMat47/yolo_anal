@@ -1,0 +1,6 @@
+[{"id": "site-ppe", "file": "site-ppe.jpg", "scene": "Column bay"},
+ {"id": "site-stairs", "file": "site-stairs.jpg", "scene": "Stair flight"},
+ {"id": "site-shaft", "file": "site-shaft.jpg", "scene": "Service shaft"},
+ {"id": "site-floor", "file": "site-floor.jpg", "scene": "Room corner"},
+ {"id": "site-materials", "file": "site-materials.jpg", "scene": "Ground-floor room"},
+ {"id": "site-railing", "file": "site-railing.jpg", "scene": "Stair doorway"}]

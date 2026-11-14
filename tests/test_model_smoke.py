@@ -4,11 +4,11 @@ from PIL import Image
 from hazard_demo.config import load_config
 from hazard_demo.detector import UltralyticsBackend, sha256_file, sha_path
 from hazard_demo.offline import block_network, configure_ultralytics
-from hazard_demo.paths import REPO_ROOT
+from hazard_demo.paths import DEMO_DIR
 
 pytestmark = pytest.mark.model
 
-PHOTO = REPO_ROOT / "docs/superpowers/specs/assets/site-ppe.jpg"
+PHOTO = DEMO_DIR / "photos" / "site-ppe.jpg"
 
 
 def test_built_model_loads_offline():

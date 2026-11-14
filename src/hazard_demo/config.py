@@ -1,5 +1,6 @@
-"""Loads and validates config/hazards.yaml: prompts, thresholds, geometry and card copy."""
+"""Loads and validates config/hazards.yaml (prompts, thresholds, geometry, card copy) and the demo photo lists."""
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,7 +8,7 @@ from typing import Any, Literal
 
 import yaml
 
-from hazard_demo.paths import CONFIG_PATH, REPO_ROOT
+from hazard_demo.paths import CONFIG_PATH, DEMO_DIR, REPO_ROOT
 
 ROLES = (
     "person", "hard_hat", "safety_vest", "staircase", "railing",
@@ -82,6 +83,46 @@ class Config:
     @property
     def threshold_pct(self) -> int:
         return round(self.threshold * 100)
+
+
+@dataclass(frozen=True)
+class DemoPhoto:
+    id: str
+    file: Path
+    scene: str
+    strip: bool = True   # False: a check-only control photo that check runs but the jury never sees
+
+
+def load_photos(path: Path = DEMO_DIR / "photos.json") -> list[DemoPhoto]:
+    """Photo files resolve against the "photos" folder next to the list."""
+    entries = _read_json(path)
+    if not isinstance(entries, list):
+        raise ConfigError(f"{path}: expected a list of photos")
+    photos: list[DemoPhoto] = []
+    for i, entry in enumerate(entries):
+        if not isinstance(entry, Mapping) or not all(isinstance(entry.get(k), str) for k in ("id", "file", "scene")):
+            raise ConfigError(f"{path}: entry {i} needs string 'id', 'file' and 'scene'")
+        if any(p.id == entry["id"] for p in photos):
+            raise ConfigError(f"{path}: duplicate photo id '{entry['id']}'")
+        photos.append(DemoPhoto(entry["id"], path.parent / "photos" / entry["file"], entry["scene"],
+                                bool(entry.get("strip", True))))
+    return photos
+
+
+def load_expected(path: Path = DEMO_DIR / "expected.json") -> dict[str, list[str]]:
+    """Photo id -> the sorted keys check expects it to flag (a hazard, or trip:<role>)."""
+    data = _read_json(path)
+    if not isinstance(data, Mapping) or not all(
+            isinstance(keys, list) and all(isinstance(k, str) for k in keys) for keys in data.values()):
+        raise ConfigError(f"{path}: expected an object mapping photo ids to lists of keys")
+    return {photo_id: sorted(keys) for photo_id, keys in data.items()}
+
+
+def _read_json(path: Path) -> Any:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ConfigError(f"{path}: cannot read ({exc})") from exc
 
 
 def load_config(path: Path = CONFIG_PATH) -> Config:
