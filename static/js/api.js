@@ -41,7 +41,8 @@ async function request(path, init = {}) {
       return null;   // a body that isn't JSON: the status alone decides the kind below
     });
   } catch (err) {
-    throw new ApiError(err.name === "AbortError" ? "aborted" : "server-lost");
+    // A health poll that outlives its timeout is a "timeout"; the state decides whether that is only a missed poll.
+    throw new ApiError(err.name === "AbortError" ? "aborted" : err.name === "TimeoutError" ? "timeout" : "server-lost");
   }
   if (!response.ok) {
     const kind = body?.error?.kind ?? (response.status >= 500 ? "model-error" : "unreadable");

@@ -31,7 +31,7 @@ const busy = (state) => state.app === "scanning" || state.app === "preparing";
 export function reduce(state, event) {
   switch (event.type) {
     case "health": return onHealth(state, event.health);
-    case "healthFailed": return onHealthFailed(state);
+    case "healthFailed": return onHealthFailed(state, event.timedOut);
     case "pick": return onPick(state, event);
     case "rescan": return onRescan(state);
     case "upload": return onUpload(state, event);
@@ -102,8 +102,11 @@ function recover(s, base, ready, failed) {
   return go(s, { ...base, ...NO_PHOTO, app: "idle" }, CLEAR);
 }
 
-function onHealthFailed(s) {
+function onHealthFailed(s, timedOut) {
   if (s.app === "server-lost") return keep(s);
+  // While the model is still loading a busy server can be slow to answer: one timed-out poll is a missed poll.
+  // A refused or dropped connection (a crash) still goes to server-lost at once.
+  if (timedOut && !s.modelReady) return keep(s);
   return go(s, { app: "server-lost", prev: s.app }, ...(busy(s) ? [ABORT] : []));
 }
 

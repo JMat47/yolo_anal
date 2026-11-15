@@ -63,6 +63,9 @@ def run_check(cfg: Config, *, backend_factory: Callable[[Config], Backend], phot
             counts[_run_photo(photo, prepared.get(photo.id), backend, expected, cfg, report)] += 1
     for target in dict.fromkeys(attempts):
         report.item("FAIL", "network", f"tried to reach {target}")
+    for photo_id in expected:
+        if photo_id not in {photo.id for photo in photos}:
+            report.item("FAIL", "expected", f"{photo_id} is in demo/expected.json but has no photo in demo/photos.json")
     report.line(f"check: {counts['PASS']} passed, {report.fails} failed, {counts['TODO']} without expectation")
     return 1 if report.fails else 0
 

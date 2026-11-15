@@ -22,8 +22,10 @@ Setup needs the internet once, to install the Python packages. The model file, f
 4. Clone the repo. A folder name with spaces or accents is fine:
 
    ```powershell
-   git clone <remote> "My Demo"
+   git clone -b feat/site-hazard-demo <remote> "My Demo"
    ```
+
+   Once the branch is merged, `-b feat/site-hazard-demo` can be dropped.
 
 5. Install the packages. This downloads the CUDA build of PyTorch, about 3 GB:
 
@@ -119,8 +121,9 @@ F11 and any key held with Ctrl, Alt or the Windows key pass through to the brows
   CPU, more slowly.
 - **"Model not loaded", or `check` fails the model file's SHA-256** (for example after a partial copy or a line-ending
   conversion). Run `git checkout -- models/`, or re-clone the repo.
-- **"Can't reach the detection server."** The server window was closed. Run `uv run hazard-demo` again; the page
-  reconnects within 5 seconds without a reload.
+- **"Can't reach the detection server."** The server window was closed. Run `uv run hazard-demo run --no-browser`
+  to restart it; the open page reconnects by itself within 5 seconds, so don't open a second tab. A restart clears the
+  earlier results, so scan the photos again.
 
 ## Swapping demo photos
 

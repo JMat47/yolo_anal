@@ -60,6 +60,8 @@ export function errorCopy(error, { name, timeoutMs }) {
     case "model-error": return { message: S.scanFailed, details: error.detail ? S.scanDetails(error.detail) : null };
     case "not-ready": return { message: S.scanNotReady };
     case "size-mismatch": return { message: S.scanSizeMismatch };
+    // A scan of a photo the server no longer holds (404, after a restart); an upload's own message is the default.
+    case "unreadable": return { message: error.upload ? S.unreadable : S.photoGone };
     case "photo-not-shown": return { message: S.photoNotShown };
     case "unsupported": return { message: error.format === "heic" ? S.heic(name) : S.otherType(name) };
     case "too-large":

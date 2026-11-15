@@ -3,7 +3,7 @@
 // or blank it. F11 passes through, and so does any key held with Ctrl, Alt or Meta.
 
 const SWALLOWED = new Set(["F5", "Escape", "b", "."]);
-const NO_REPEAT = new Set(["r", "h"]);   // a held key re-scans or flips the boxes once
+const NO_REPEAT = new Set(["r", "h", "ArrowRight", "ArrowLeft", "PageDown", "PageUp"]);   // a held key re-scans, flips the boxes or steps one photo, once
 
 export function bindKeys({ next, prev, rescan, toggle }) {
   const actions = { ArrowRight: next, PageDown: next, ArrowLeft: prev, PageUp: prev, r: rescan, h: toggle };

@@ -45,6 +45,7 @@ export const S = {
   scanNotReady: "The model isn't ready yet. Scan again in a moment.",
   scanSizeMismatch: "The photo on screen doesn't match the size the model scanned, so its boxes can't be drawn. " +
     "Choose the photo again.",
+  photoGone: "That photo is no longer on the server. Choose it again.",
   photoNotShown: "The photo couldn't be shown. Choose it again, or choose another photo.",
   scanAgain: "Scan again",
 

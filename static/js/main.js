@@ -410,8 +410,8 @@ async function pollHealth() {
   try {
     health = await api.getHealth();
     dispatch({ type: "health", health });
-  } catch {
-    dispatch({ type: "healthFailed" });
+  } catch (err) {
+    dispatch({ type: "healthFailed", timedOut: err.kind === "timeout" });
   }
   const steady = state.modelReady && state.app !== "server-lost";
   setTimeout(pollHealth, steady ? POLL_READY_MS : POLL_LOADING_MS);

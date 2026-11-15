@@ -77,7 +77,7 @@ def run_demo(cfg: Config, *, open_browser: bool) -> int:
     app = create_app(cfg)
     if open_browser:
         open_browser_when_up(port)
-    uvicorn.run(app, host="127.0.0.1", port=port)
+    uvicorn.run(app, host="127.0.0.1", port=port, access_log=False)
     return 0
 
 
