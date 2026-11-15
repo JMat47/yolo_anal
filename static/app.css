@@ -81,9 +81,10 @@
   --fs-body: clamp(1rem, 0.3rem + 0.81vw, 1.375rem);
   --fs-label: max(0.875rem, calc(var(--fs-body) * 0.75));
   --fs-chip: max(0.875rem, calc(var(--fs-body) * 0.85));
+  --fs-evidence: max(0.875rem, var(--fs-body));   /* found/missing chips carry the reasoning: body size, not .85× */
   --fs-conf: max(0.875rem, var(--fs-body));
   --fs-head: max(0.875rem, calc(var(--fs-body) * 1.1));
-  --fs-title: max(0.875rem, calc(var(--fs-body) * 1.2));
+  --fs-title: max(0.875rem, calc(var(--fs-body) * 1.1));   /* card title one step over the chips: one block */
   --fs-wordmark: max(0.875rem, calc(var(--fs-body) * 1.4));
   --fs-stat: max(0.875rem, calc(var(--fs-body) * 1.4));
 
@@ -814,8 +815,8 @@ button { font: inherit; color: inherit; }
   margin: 0;
   padding: 0;
   list-style: none;
-  font-size: var(--fs-chip);
-  line-height: 1.3;
+  font-size: var(--fs-evidence);
+  line-height: 1.25;   /* UI-69's chip role; each chip is one line */
 }
 .chip {
   padding: 4px 10px;
@@ -834,6 +835,23 @@ button { font: inherit; color: inherit; }
   line-height: 1.25;
   text-wrap: pretty;
   color: var(--ink-2);
+}
+/* Short screens: three cards, each with a two-row No PPE chip set, fit without scrolling at 1366x768 (UI-106).
+   Only the vertical spacing tightens; the card anatomy (UI-102) and the side padding stay. */
+@media (max-height: 799.98px) {
+  .panel-head { padding-block: var(--space-3) var(--space-2); }
+  .findings { gap: var(--gap-group); }
+  .card { padding-block: var(--space-3); }
+  .card-title { margin-block: var(--space-1) var(--space-2); }
+  .chips { gap: var(--gap-tight) var(--gap-item); }
+}
+/* Shorter still (1280x720 full screen, 1536x729 windowed): tighter again, and card type stops growing with the
+   viewport width, so a wide-but-short window keeps the same fit as 1280. */
+@media (max-height: 739.98px) {
+  .findings { gap: var(--gap-item); }
+  .card { padding-block: var(--space-2) var(--space-3); }
+  .card-title { font-size: min(var(--fs-title), 1.1rem); }
+  .chips { font-size: min(var(--fs-evidence), 1rem); }
 }
 
 /* Zero hazards (UI-34, PM-7): what the model found, every check that ran, then the sign-off. Neutral only. */

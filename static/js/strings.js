@@ -58,8 +58,7 @@ export const S = {
   // Findings panel (UI-23, UI-42, UI-46, UI-101, UI-21)
   panelHeading: "Hazards flagged",
   panelHeadingEmpty: "No hazards flagged",
-  legend: (thresholdPct) => "Confidence is the model's score for one object, not the chance a hazard is real. " +
-    `Scores of ${thresholdPct}% or less count as missing.`,
+  legend: (thresholdPct) => `Confidence: the model's score per object. Missing: ${thresholdPct}% or less.`,   // one line from 1280
   panelBooting: "Loading the model. Photos can be scanned once it's ready.",
   panelIdle: "Choose a site photo above, or upload one.",
   panelError: "No results for this photo",
