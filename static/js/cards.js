@@ -1,6 +1,6 @@
 // The findings panel: at most 3 hazard cards (UI-101 to UI-105), the hidden-count line, the zero-hazard result
-// (UI-34, PM-7) and the panel messages. Text goes in with textContent only. Card titles, category labels, check
-// labels and prompt words come from the payload (config).
+// (UI-34, PM-7), the check list shown before any photo, and the panel messages. Text goes in with textContent only.
+// Card titles, category labels, check labels and prompt words come from the payload or /api/config (config).
 import { reducedMotion, scrollBehavior } from "./dom.js";
 import { hiddenLine, orList, sentenceCase } from "./format.js";
 import { REVEAL, highlight, revealDelay } from "./stage.js";
@@ -14,6 +14,7 @@ const FADE = [{ opacity: 0 }, { opacity: 1 }];
 const SLOT = "\u0000";   // where a template's value goes when that value is built from nodes
 
 export function renderCards(findings, hiddenCount, { animate }) {
+  heading.textContent = S.panelHeading;   // "Hazards flagged" only once there is a result to back it
   const cards = findings.map(card);
   const nodes = hiddenCount > 0 ? [...cards, paragraph("hidden-line", hiddenLine(hiddenCount))] : cards;
   list.replaceChildren(...nodes);
@@ -65,8 +66,31 @@ export function renderEmpty(payload, { animate = true } = {}) {
 }
 
 export function renderPanelMessage(text) {
-  heading.textContent = S.panelHeading;
+  heading.textContent = S.panelHeadingChecks;
   list.replaceChildren(paragraph("panel-msg", text));
+}
+
+// Loading and idle: the method before any photo. Each of the five checks with its category and the prompt words
+// it looks for, then every word the model is asked to find, then the panel message. All of it comes from config;
+// without config yet, only the message shows.
+export function renderChecks(config, text) {
+  if (!config) {
+    renderPanelMessage(text);
+    return;
+  }
+  heading.textContent = S.panelHeadingChecks;
+  const checks = document.createElement("ul");
+  checks.className = "check-list idle-checks";
+  checks.append(...config.checks.map((check) => {
+    const line = document.createElement("li");
+    line.append(span("check-label", check.check_label),
+      span("check-words", S.checkLooksFor(check.category, orList(check.anchor_items))));
+    return line;
+  }));
+  const words = paragraph("idle-words", "");
+  words.append(...slotted(S.askedToFind(SLOT), [span("check-label", config.vocabulary.join(", "))]));
+  list.replaceChildren(checks, words, paragraph("panel-msg", text));
+  list.scrollTop = 0;
 }
 
 // A notice under the panel message, with a Dismiss button (UI-93's reduced-motion notice in idle).
@@ -85,8 +109,9 @@ export function renderNotice(text, onDismiss) {
   list.append(notice);
 }
 
+// A new photo, a scan or an upload under way: nothing is flagged yet, so the heading stays neutral (R22).
 export function clearCards() {
-  heading.textContent = S.panelHeading;
+  heading.textContent = S.panelHeadingChecks;
   list.replaceChildren();
 }
 

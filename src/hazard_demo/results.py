@@ -4,7 +4,7 @@ import math
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any, Literal
 
-from hazard_demo.config import Config
+from hazard_demo.config import HAZARDS, Config
 from hazard_demo.rules import Check, Evaluation, Finding, RuleOutcome, anchor_roles, select
 
 if TYPE_CHECKING:
@@ -76,13 +76,24 @@ def _check(c: Check, cfg: Config) -> dict:
     return out
 
 
+def check_list(cfg: Config) -> list[dict]:
+    """The five hazard checks, in HAZARDS order, as the idle screen lists them (and each scan's rules repeat)."""
+    return [_check_text(hazard, cfg) for hazard in HAZARDS]
+
+
+def _check_text(hazard: str, cfg: Config) -> dict:
+    return {
+        "hazard": hazard,
+        "category": cfg.hazards[hazard].category,
+        "check_label": cfg.hazards[hazard].check_label,
+        "anchor_items": [cfg.word(role) for role in anchor_roles(hazard, cfg)],
+    }
+
+
 def _rule(o: RuleOutcome, ev: Evaluation, cfg: Config) -> dict:
     roles = anchor_roles(o.hazard, cfg)
     return {
-        "hazard": o.hazard,
-        "category": cfg.hazards[o.hazard].category,
-        "check_label": cfg.hazards[o.hazard].check_label,
-        "anchor_items": [cfg.word(role) for role in roles],
+        **_check_text(o.hazard, cfg),
         "anchor_found": any(ev.best[role] > cfg.threshold_for(role) for role in roles),
         "fired": o.fired,
         "count": o.count,

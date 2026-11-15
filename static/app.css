@@ -877,6 +877,12 @@ button { font: inherit; color: inherit; }
 .check-label { color: var(--ink-1); }
 .empty-signoff { margin: 0; font-size: var(--fs-label); line-height: 1.25; text-wrap: pretty; color: var(--ink-2); }
 
+/* Before any photo: the five checks, each with its category and the words it looks for, then every prompt word. */
+.idle-checks { flex: none; }
+.idle-checks .check-label { display: block; }
+.check-words { display: block; margin-top: var(--space-1); font-size: var(--fs-label); }
+.idle-words { margin: 0; font-size: var(--fs-chip); line-height: 1.45; text-wrap: pretty; color: var(--ink-2); }
+
 .panel-msg {
   max-width: 34em;
   margin: 0;

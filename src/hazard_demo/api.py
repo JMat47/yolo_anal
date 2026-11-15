@@ -16,7 +16,7 @@ from hazard_demo.config import Config, DemoPhoto, load_photos
 from hazard_demo.detector import Backend, ModelError, ModelService, NotReady, Superseded, UltralyticsBackend
 from hazard_demo.imaging import MAX_BYTES, ImageRejected, ImageStore, default_store_root, too_many_bytes
 from hazard_demo.paths import STATIC_DIR, display_path
-from hazard_demo.results import scan_payload
+from hazard_demo.results import check_list, scan_payload
 from hazard_demo.rules import evaluate
 
 VERSION = "v0.1"
@@ -82,7 +82,7 @@ def create_app(cfg: Config, *, backend_factory: Callable[[Config], Backend] = Ul
     def config() -> dict:
         return {"vocabulary": cfg.vocabulary, "threshold_pct": cfg.threshold_pct, "min_scene_ms": cfg.min_scene_ms,
                 "timeout_ms": cfg.timeout_ms, "max_findings": cfg.max_findings, "max_upload_bytes": MAX_BYTES,
-                "version": VERSION}
+                "version": VERSION, "checks": check_list(cfg)}
 
     @app.get("/api/photos")
     def demo_photos() -> list[dict]:

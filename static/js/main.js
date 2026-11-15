@@ -332,12 +332,12 @@ function stageMessage() {
   }
 }
 
-// The panel's own message on entering a state. empty and error fill it once their scene has ended; result
-// draws cards; server-lost only hides what is there (R6).
+// The panel's own message on entering a state. Loading and idle list the hazard checks (once config is in);
+// empty and error fill it once their scene has ended; result draws cards; server-lost only hides what is there (R6).
 function renderPanel() {
   switch (state.app) {
     case "booting":
-    case "warming": return cards.renderPanelMessage(S.panelBooting);
+    case "warming": return cards.renderChecks(config, S.panelBooting);
     case "idle": return renderIdlePanel();
     case "waiting":
     case "preparing":
@@ -348,7 +348,7 @@ function renderPanel() {
 
 // UI-93: with reduced motion on, idle also says the sweep won't play, until the presenter dismisses it.
 function renderIdlePanel() {
-  cards.renderPanelMessage(S.panelIdle);
+  cards.renderChecks(config, S.panelIdle);
   if (reducedMotion() && !motionNoticeDismissed) {
     cards.renderNotice(S.reducedMotion, () => { motionNoticeDismissed = true; });
   }
@@ -400,6 +400,7 @@ async function boot() {
   }
   $("legend").textContent = S.legend(config.threshold_pct);
   $("version").textContent = config.version;
+  renderPanel();   // still loading: the check list joins the loading message
   strip.renderStrip(photos);
   renderThumbs();
   pollHealth();

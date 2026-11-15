@@ -106,7 +106,17 @@ def test_csp_header_exact(make_client):
 def test_config_endpoint(make_client):
     body = make_client().get("/api/config").json()
     assert body == {"vocabulary": CFG.vocabulary, "threshold_pct": 25, "min_scene_ms": 1500, "timeout_ms": 20000,
-                    "max_findings": 3, "max_upload_bytes": 26214400, "version": "v0.1"}
+                    "max_findings": 3, "max_upload_bytes": 26214400, "version": "v0.1", "checks": [
+                        check("fall_stair", ["staircase"]), check("fall_opening", ["floor_opening"]),
+                        check("trip", ["cable", "debris", "uneven_floor"]), check("no_ppe", ["person"]),
+                        check("materials", ["pile"])]}
+
+
+def check(hazard: str, roles: list[str]) -> dict:
+    """One entry of the config's idle check list: the hazard's config text and its anchor prompt words."""
+    text = CFG.hazards[hazard]
+    return {"hazard": hazard, "category": text.category, "check_label": text.check_label,
+            "anchor_items": [CFG.word(role) for role in roles]}
 
 
 def test_photos_listed_with_prepared_image(make_client):
