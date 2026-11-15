@@ -61,7 +61,8 @@ export const S = {
   panelHeadingChecks: "Hazard checks",   // neutral: loading, idle, scanning and errors say nothing was flagged yet
   checkLooksFor: (category, items) => `${category} · looks for ${items}`,
   askedToFind: (words) => `The model is asked to find: ${words}.`,
-  legend: (thresholdPct) => `Confidence: the model's score per object. Missing: ${thresholdPct}% or less.`,   // one line from 1280
+  legend: (thresholdPct) => "Confidence is the model's score per object, not the chance a hazard is real. " +
+    `${thresholdPct}% or less counts as missing.`,
   panelBooting: "Loading the model. Photos can be scanned once it's ready.",
   panelIdle: "Choose a site photo above, or upload one.",
   panelError: "No results for this photo",
