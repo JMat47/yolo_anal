@@ -9,7 +9,11 @@ const SVG_NS = "http://www.w3.org/2000/svg";
 const MIN_BOX = 16;           // UI-14
 const SAME_SPOT_IOU = 0.9;    // boxes of different types this close: the later one is inset
 const SAME_SPOT_INSET = 4;
+const FULL_FRAME_SHARE = 0.85;   // a box this share of the frame or more would read as the frame's border...
+const FULL_FRAME_GAP = 8;        // ...so its edges keep this far inside the frame, with the stronger keyline
 const STROKE = 3;
+const KEYLINE = 1;
+const FULL_KEYLINE = 2;
 const DOT_RADIUS = 3.5;       // the 7px leader dot
 const CATCH_UP_MS = 150;      // a late response: the sweep finishes its pass within this
 const FADE_MS = 150;          // the dim and grid fade before the first box
@@ -335,8 +339,9 @@ function boxRects(findings, size) {
   for (const finding of findings) {
     const [x1, y1, x2, y2] = finding.anchor.box_norm;
     let rect = atLeast({ x: x1 * size.w, y: y1 * size.h, w: (x2 - x1) * size.w, h: (y2 - y1) * size.h }, size);
+    if ((x2 - x1) * (y2 - y1) >= FULL_FRAME_SHARE) rect = { ...clearOfEdges(rect, size, FULL_FRAME_GAP), full: true };
     if (placed.some((p) => p.hazard !== finding.hazard && iou(p.rect, rect) >= SAME_SPOT_IOU)) {
-      rect = { x: rect.x + SAME_SPOT_INSET, y: rect.y + SAME_SPOT_INSET, w: rect.w - 2 * SAME_SPOT_INSET,
+      rect = { ...rect, x: rect.x + SAME_SPOT_INSET, y: rect.y + SAME_SPOT_INSET, w: rect.w - 2 * SAME_SPOT_INSET,
         h: rect.h - 2 * SAME_SPOT_INSET };
     }
     placed.push({ hazard: finding.hazard, rect });
@@ -356,11 +361,23 @@ function atLeast(rect, size) {
   return { x, y, w, h };
 }
 
-// The 3px stroke sits inside the box, the 1px keyline just outside it, and the highlight outline outside the
-// stroke, so a box on the photo's edge keeps its whole outline (UI-14, UI-20).
+// Only the edges closer than `gap` to the frame move in; the others stay on the object.
+function clearOfEdges(rect, size, gap) {
+  const left = Math.max(rect.x, gap);
+  const top = Math.max(rect.y, gap);
+  const right = Math.min(rect.x + rect.w, size.w - gap);
+  const bottom = Math.min(rect.y + rect.h, size.h - gap);
+  return { x: left, y: top, w: right - left, h: bottom - top };
+}
+
+// The 3px stroke sits inside the box, the keyline just outside it, and the highlight outline outside the
+// stroke, so a box on the photo's edge keeps its whole outline (UI-14, UI-20). A near-full-frame box gets the
+// stronger keyline, so it reads as a box drawn on the photo rather than the frame's border.
 function setBoxRect(g, r) {
   const [keyline, line, outline] = g.children;
-  setRect(keyline, r.x - 0.5, r.y - 0.5, r.w + 1, r.h + 1);
+  const half = (r.full ? FULL_KEYLINE : KEYLINE) / 2;
+  g.classList.toggle("is-full", Boolean(r.full));
+  setRect(keyline, r.x - half, r.y - half, r.w + 2 * half, r.h + 2 * half);
   setRect(line, r.x + STROKE / 2, r.y + STROKE / 2, r.w - STROKE, r.h - STROKE);
   setRect(outline, r.x - STROKE / 2, r.y - STROKE / 2, r.w + STROKE, r.h + STROKE);
   g.dataset.area = String(r.w * r.h);

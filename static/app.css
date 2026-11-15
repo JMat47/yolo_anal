@@ -500,6 +500,7 @@ button { font: inherit; color: inherit; }
 /* Boxes and leaders (UI-14, UI-19, UI-20): the dash tells red from amber without hue. */
 .box, .leader, .tag { transition: opacity 120ms ease-out; }
 .box-keyline { fill: none; stroke: rgb(0 0 0 / 0.55); stroke-width: 1; pointer-events: all; }
+.box.is-full .box-keyline { stroke: rgb(0 0 0 / 0.8); stroke-width: 2; }   /* kept 8px inside the frame (stage.js) */
 .tag { pointer-events: auto; }
 .tag-probe .tag { pointer-events: none; }
 .box-line, .leader-line { fill: none; stroke-width: 3; }
