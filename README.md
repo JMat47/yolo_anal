@@ -22,10 +22,8 @@ Setup needs the internet once, to install the Python packages. The model file, f
 4. Clone the repo. A folder name with spaces or accents is fine:
 
    ```powershell
-   git clone -b feat/site-hazard-demo <remote> "My Demo"
+   git clone <remote> "My Demo"
    ```
-
-   Once the branch is merged, `-b feat/site-hazard-demo` can be dropped.
 
 5. Install the packages. This downloads the CUDA build of PyTorch, about 3 GB:
 
