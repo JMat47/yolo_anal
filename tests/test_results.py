@@ -72,7 +72,7 @@ def test_payload_rules_carry_empty_state_data():
     assert rules["trip"]["anchor_items"] == ["cable", "debris", "uneven floor"]
     assert rules["trip"]["anchor_found"] is False
     assert rules["fall_stair"] == {"hazard": "fall_stair", "category": "Fall hazard",
-                                   "check_label": "Staircase without a railing", "anchor_items": ["staircase"],
+                                   "check_label": "Staircase without a railing", "anchor_items": [CFG.word("staircase")],
                                    "anchor_found": True, "fired": False, "count": 0}
 
 
@@ -86,4 +86,4 @@ def test_payload_uses_config_words():
 def test_objects_found_sorted():
     p = payload([Detection("railing", .712, (600, 300, 650, 500)), Detection("staircase", .845, STAIR),
                  Detection("hard_hat", .12, (0, 0, 10, 10))])
-    assert p["objects_found"] == [{"item": "staircase", "pct": 84}, {"item": "railing", "pct": 71}]
+    assert p["objects_found"] == [{"item": CFG.word("staircase"), "pct": 84}, {"item": "railing", "pct": 71}]

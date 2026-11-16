@@ -8,8 +8,8 @@ OFL_FILES = ("OFL-atkinson-hyperlegible-next.txt", "OFL-atkinson-hyperlegible-mo
 
 def test_photos_json_matches_files():
     photos = load_photos()
-    assert [p.id for p in photos] == ["noppe-1", "opening-open-1", "materials-3", "stair-railed-1", "ppe-ok-1",
-                                      "clean-floor-1", "clean-floor-2"]
+    assert [p.id for p in photos] == ["noppe-1", "noppe-2", "opening-open-1", "stair-open-1", "materials-3",
+                                      "materials-4", "stair-railed-1", "ppe-ok-1", "clean-floor-1", "clean-floor-2"]
     assert all(p.file.is_file() and p.file.parent == DEMO_DIR / "photos" for p in photos)
     assert photos[0].id == "noppe-1"
     assert all(p.scene for p in photos)

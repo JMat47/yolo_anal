@@ -17,7 +17,7 @@ def write_config(tmp_path: Path, edit) -> Path:
 
 def test_vocabulary_order():
     assert load_config().vocabulary == [
-        "person", "hard hat", "high-visibility vest", "staircase", "railing",
+        "person", "hard hat", "high-visibility vest", "concrete stairs", "railing",
         "gap in the floor", "cable", "debris", "uneven floor", "pile of materials",
     ]
 

@@ -8,3 +8,5 @@ artifacts/
 .impeccable/config.local.json
 .impeccable/hook.cache.json
 demo/incoming/
+# The original phone photos: full size and carrying GPS location. Cleaned copies are committed instead.
+demo/photos/IMG_*

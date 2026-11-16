@@ -65,9 +65,10 @@ This starts the server at `http://127.0.0.1:8765` and opens the default browser 
 mode. Keep the server window open: if it closes, the page shows "Model offline" and recovers by itself once the server
 runs again. `uv run hazard-demo run --no-browser` skips opening the browser; Ctrl+C stops the server.
 
-The strip holds 4 demo photos, in this order: Tulaghi site (`noppe-1`), Timber floor (`opening-open-1`), Old workshop
-(`materials-3`) and Slab edge (`ppe-ok-1`, which flags nothing). The other photos in `demo/photos/` are check-only
-controls that `check` runs but the strip never shows.
+The strip holds 7 demo photos, in this order: Tulaghi site (`noppe-1`), Fit-out room (`noppe-2`), Timber floor
+(`opening-open-1`), Stair core (`stair-open-1`), Old workshop (`materials-3`), Concrete shell (`materials-4`) and Slab
+edge (`ppe-ok-1`, which flags nothing). The other photos in `demo/photos.json` are check-only controls that `check`
+runs but the strip never shows.
 
 Picking a photo again shows its earlier result at once, including one that flagged nothing, with the stats row
 reading "Model time, earlier run". R, or a click on the photo already on stage, scans it afresh. The Upload photo tile takes JPG, PNG or WebP; HEIC is rejected
